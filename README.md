@@ -1,7 +1,9 @@
 Entity-Component Framework
 ==========================
 
-A fast and compact [http://t-machine.org/index.php/2007/09/03/entity-systems-are-the-future-of-mmog-development-part-1/](entity-component framework) in C++.
+A fast and compact [entity-component framework](http://t-machine.org/index.php/2007/09/03/entity-systems-are-the-future-of-mmog-development-part-1/)
+in C++.
+
 
 Example
 -------
@@ -38,4 +40,9 @@ main()
     std::cout << "Player: " << s.get<std::string>(player, name) << std::endl;
 }
 ```
+
+License
+-------
+This library is released under the terms and conditions of the MIT License.
+See the file 'LICENSE' for more information.
 

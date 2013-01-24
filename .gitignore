@@ -11,3 +11,21 @@
 *.lai
 *.la
 *.a
+
+# Cruft
+*~
+*.bak
+*.log
+.*.sw[a-z]
+\#*\#
+.\#*
+*.tmp
+
+build/
+CMakeFiles/*
+Makefile
+CPackConfig.cmake
+CPackSourceConfig.cmake
+CMakeCache.txt
+tags
+
