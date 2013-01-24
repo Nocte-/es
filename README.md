@@ -1,9 +1,13 @@
 Entity-Component Framework
 ==========================
 
+<<<<<<< HEAD
 A fast and compact [entity-component framework](http://t-machine.org/index.php/2007/09/03/entity-systems-are-the-future-of-mmog-development-part-1/)
 in C++.
 
+=======
+A fast and compact [entity-component framework](http://t-machine.org/index.php/2007/09/03/entity-systems-are-the-future-of-mmog-development-part-1/) in C++.
+>>>>>>> da24bb784ed5b57ce494cd89222b685de6f74b53
 
 Example
 -------
