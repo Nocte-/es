@@ -36,7 +36,7 @@ public:
     const std::string&    name() const      { return name_; }
     const std::type_info& type() const      { return type_; }
     size_t                size() const      { return size_; }
-    bool                  is_pod() const    { return ph_ == nullptr; }
+    bool                  is_flat() const   { return ph_ == nullptr; }
 
     bool operator== (const std::string& compare) const
         { return name_ == compare; }

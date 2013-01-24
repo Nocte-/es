@@ -17,6 +17,7 @@
 
 #include "component.hpp"
 #include "entity.hpp"
+#include "traits.hpp"
 
 namespace ecs {
 
@@ -72,14 +73,14 @@ public:
         {
             size_t size;
 
-            if (std::is_pod<type>().value)
+            if (is_flat<type>::value)
             {
                 size = sizeof(type);
                 components_.emplace_back(name, typeid(type), size, nullptr);
             }
             else
             {
-                pod_mask_.set(components_.size());
+                flat_mask_.set(components_.size());
                 size = sizeof(holder<type>);
                 components_.emplace_back(name, typeid(type), size,
                                          std::unique_ptr<placeholder>(new holder<type>()));
@@ -127,14 +128,14 @@ public:
             elem& e (f->second);
 
             // Quick check if we'll have to call any destructors.
-            if ((e.components & pod_mask_).any())
+            if ((e.components & flat_mask_).any())
             {
                 size_t off {0};
                 for (int search {0}; search < 64 && off < e.data.size(); ++search)
                 {
                     if (e.components[search])
                     {
-                        if (!components_[search].is_pod())
+                        if (!components_[search].is_flat())
                         {
                             auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
                             ptr->~placeholder();
@@ -165,7 +166,7 @@ public:
                 e.components.set(c_id);
             }
 
-            if (std::is_pod<type>().value)
+            if (is_flat<type>::value)
             {
                 new (&*e.data.begin() + off) type(std::move(val));
             }
@@ -188,7 +189,7 @@ public:
                 throw std::logic_error("entity does not have component");
 
             size_t off (offset(e, c_id));
-            if (std::is_pod<type>().value)
+            if (is_flat<type>::value)
                 return *reinterpret_cast<const type*>(&*e.data.begin() + off);
 
             auto ptr (reinterpret_cast<const holder<type>*>(&*e.data.begin() + off));
@@ -238,8 +239,8 @@ private:
      *  The index is the bitmask as used in elem::components. */
     std::vector<size_t>                 component_offsets_;
     /** A bitmask to quickly determine whether a certain combination of
-     ** components has any non-POD data types. */
-    std::bitset<64>                     pod_mask_;
+     ** components has a flat memory layout or not. */
+    std::bitset<64>                     flat_mask_;
 };
 
 } // namespace ecs
