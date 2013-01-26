@@ -1,6 +1,6 @@
 project (unit-tests)
 cmake_minimum_required (VERSION 2.8.3)
-set(EXE unittests)
+set(EXE unit_tests)
 
 add_definitions(-DBOOST_TEST_DYN_LINK) 
 
