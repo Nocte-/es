@@ -25,16 +25,13 @@ protected:
     };
 
 public:
-    component(std::string name, const std::type_info& type, size_t size,
-              std::unique_ptr<placeholder> ph)
+    component(std::string name, size_t size, std::unique_ptr<placeholder> ph)
         : name_(name)
-        , type_(type)
         , size_(size)
         , ph_(std::move(ph))
     { }
 
     const std::string&    name() const      { return name_; }
-    const std::type_info& type() const      { return type_; }
     size_t                size() const      { return size_; }
     bool                  is_flat() const   { return ph_ == nullptr; }
 
@@ -46,7 +43,6 @@ public:
 
 private:
     std::string             name_;
-    const std::type_info&   type_;
     size_t                  size_;
     std::unique_ptr<placeholder> ph_;
 };

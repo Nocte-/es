@@ -77,13 +77,13 @@ public:
             if (is_flat<type>::value)
             {
                 size = sizeof(type);
-                components_.emplace_back(name, typeid(type), size, nullptr);
+                components_.emplace_back(name, size, nullptr);
             }
             else
             {
                 flat_mask_.set(components_.size());
                 size = sizeof(holder<type>);
-                components_.emplace_back(name, typeid(type), size,
+                components_.emplace_back(name, size,
                                          std::unique_ptr<placeholder>(new holder<type>()));
             }
 
@@ -165,8 +165,6 @@ public:
     void set (entity en, component_id c_id, type val)
         {
             const component& c (components_[c_id]);
-            if (c.type() != typeid(type))
-                throw std::logic_error("component type does not match");
 
             auto& e (find_elem(en));
             size_t off (offset(e, c_id));
@@ -190,10 +188,6 @@ public:
     template <typename type>
     const type& get (entity en, component_id c_id) const
         {
-            const component& c (components_[c_id]);
-            if (c.type() != typeid(type))
-                throw std::logic_error("component type does not match");
-
             auto& e (find_elem(en));
             if (!e.components[c_id])
                 throw std::logic_error("entity does not have component");
