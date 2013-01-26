@@ -64,9 +64,10 @@ public:
 
 public:
     storage()
-    {
-        component_offsets_.push_back(0);
-    }
+        : next_id_(0)
+        {
+            component_offsets_.push_back(0);
+        }
 
     template <typename type>
     component_id register_component (std::string name)
@@ -115,7 +116,7 @@ public:
 public:
     entity new_entity()
         {
-            entities_.emplace(next_id_++, elem());
+            entities_[next_id_++];
             return next_id_ - 1;
         }
 
@@ -130,8 +131,8 @@ public:
             // Quick check if we'll have to call any destructors.
             if ((e.components & flat_mask_).any())
             {
-                size_t off {0};
-                for (int search {0}; search < 64 && off < e.data.size(); ++search)
+                size_t off (0);
+                for (int search (0); search < 64 && off < e.data.size(); ++search)
                 {
                     if (e.components[search])
                     {
@@ -147,6 +148,15 @@ public:
 
             entities_.erase(f);
         }
+
+    void iterate (std::bitset<64> mask, std::function<void(entity)> func)
+    {
+        for (auto& en : entities_)
+        {
+            if ((en.second.components & mask) == mask)
+                func(en.first);
+        }
+    }
 
     bool exists (entity en) const
         { return entities_.count(en.id()); }
@@ -218,8 +228,8 @@ private:
 
     size_t offset (const elem& e, component_id c) const
         {
-            size_t result {0};
-            for (component_id search {0}; search != c; ++search)
+            size_t result (0);
+            for (component_id search (0); search != c; ++search)
             {
                 if (e.components[search])
                     result += components_[search].size();
@@ -230,7 +240,7 @@ private:
 
 private:
     /** Keeps track of entity IDs to give out. */
-    uint32_t                            next_id_ { 0 };
+    uint32_t                            next_id_;
     /** The list of registered components. */
     std::vector<component>              components_;
     /** Mapping entity IDs to their data. */
