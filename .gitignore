@@ -21,6 +21,8 @@
 .\#*
 *.tmp
 
+version.hpp
+Doxyfile
 build/
 CMakeFiles/*
 Makefile

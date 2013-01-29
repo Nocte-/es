@@ -1,4 +1,4 @@
-project(rhea)
+project(ecs)
 cmake_minimum_required(VERSION 2.8.3)
 set(CPACK_PACKAGE_NAME "ecs")
 
@@ -38,6 +38,8 @@ else() # Most likely gcc or clang
     set(CMAKE_LIB_LINKER_FLAGS  "-s")    
 endif()
 
+add_subdirectory(ecs)
+
 if(BUILD_UNITTESTS)
   add_subdirectory(unit_tests)
 endif()
@@ -61,7 +63,7 @@ endif()
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Fast C++ entity-component framework")
 set(CPACK_PACKAGE_VENDOR "Nocte")
 set(CPACK_PACKAGE_CONTACT "Nocte <nocte@hippie.nu>")
-set(CPACK_SOURCE_IGNORE_FILES "CMakefiles;Makefile;CMakeCache.txt;_CPack_Packages;/.git/;.gitignore;")
+set(CPACK_SOURCE_IGNORE_FILES "CMakefiles;Makefile;CMakeCache.txt;_CPack_Packages;/.git/;.gitignore;.travis.yml")
 set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}_${VERSION}")
     
 if(UNIX)

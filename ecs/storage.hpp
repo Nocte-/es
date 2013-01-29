@@ -62,6 +62,50 @@ private:
 public:
     typedef uint8_t     component_id;
 
+    typedef stor_impl::iterator         iterator;
+    typedef stor_impl::const_iterator   const_iterator;
+
+public:
+    template <typename type>
+    class var_ref
+    {
+        friend class storage;
+
+    public:
+        operator const type& () const
+        {
+            if (is_flat<type>::value)
+                return *reinterpret_cast<const type*>(&*e_.data.begin() + offset_);
+
+            auto ptr (reinterpret_cast<const holder<type>*>(&*e_.data.begin() + offset_));
+            return ptr->held();
+        }
+
+        var_ref& operator= (type assign)
+        {
+            if (is_flat<type>::value)
+            {
+                new (&*e_.data.begin() + offset_) type(std::move(assign));
+            }
+            else
+            {
+                auto ptr (reinterpret_cast<holder<type>*>(&*e_.data.begin() + offset_));
+                new (ptr) holder<type>(std::move(assign));
+            }
+            return *this;
+        }
+
+
+    protected:
+        var_ref (size_t offset, elem& e)
+            : offset_(offset), e_(e)
+        { }
+
+    private:
+        size_t offset_;
+        elem&  e_;
+    };
+
 public:
     storage()
         : next_id_(0)
@@ -120,12 +164,38 @@ public:
             return next_id_ - 1;
         }
 
-    void delete_entity (entity en)
+    std::pair<entity, entity> new_entities (size_t count)
         {
-            auto f (entities_.find(en.id()));
-            if (f == entities_.end())
+            auto range_begin (next_id_);
+            for (; count > 0; --count)
+                entities_[next_id_++];
+
+            return std::make_pair(range_begin, next_id_);
+        }
+
+    iterator find (entity en)
+        {
+            auto found (entities_.find(en.id()));
+            if (found == entities_.end())
                 throw std::logic_error("unknown entity");
 
+            return found;
+        }
+
+    const_iterator find (entity en) const
+        {
+            auto found (entities_.find(en.id()));
+            if (found == entities_.end())
+                throw std::logic_error("unknown entity");
+
+            return found;
+        }
+
+    void delete_entity (entity en)
+        { delete_entity(find(en)); }
+
+    void delete_entity (iterator f)
+        {
             elem& e (f->second);
 
             // Quick check if we'll have to call any destructors.
@@ -149,25 +219,33 @@ public:
             entities_.erase(f);
         }
 
-    void iterate (std::bitset<64> mask, std::function<void(entity)> func)
-    {
-        for (auto& en : entities_)
+    template <typename t>
+    void for_each (component_id c, std::function<void(iterator, var_ref<t>)> func)
         {
-            if ((en.second.components & mask) == mask)
-                func(en.first);
+            std::bitset<64> mask;
+            mask.set(c);
+            for (auto i (entities_.begin()); i != entities_.end(); ++i)
+            {
+                elem& e (i->second);
+                if ((e.components & mask) == mask)
+                    func(i, var_ref<t>(offset(e, c), e));
+            }
         }
-    }
 
     bool exists (entity en) const
         { return entities_.count(en.id()); }
 
     template <typename type>
     void set (entity en, component_id c_id, type val)
+        { return set<type>(find(en), c_id, std::move(val)); }
+
+    template <typename type>
+    void set (iterator en, component_id c_id, type val)
         {
             const component& c (components_[c_id]);
-
-            auto& e (find_elem(en));
+            elem&  e   (en->second);
             size_t off (offset(e, c_id));
+
             if (!e.components[c_id])
             {
                 e.data.insert(e.data.begin() + off, c.size(), 0);
@@ -187,11 +265,22 @@ public:
 
     template <typename type>
     const type& get (entity en, component_id c_id) const
+        { return get<type>(find(en), c_id); }
+
+    template <typename type>
+    const type& get (const_iterator en, component_id c_id) const
         {
-            auto& e (find_elem(en));
+            auto& e (en->second);
             if (!e.components[c_id])
                 throw std::logic_error("entity does not have component");
 
+            return get<type>(e, c_id);
+        }
+
+private:
+    template <typename type>
+    const type& get (const elem& e, component_id c_id) const
+        {
             size_t off (offset(e, c_id));
             if (is_flat<type>::value)
                 return *reinterpret_cast<const type*>(&*e.data.begin() + off);
@@ -199,25 +288,6 @@ public:
             auto ptr (reinterpret_cast<const holder<type>*>(&*e.data.begin() + off));
 
             return ptr->held();
-        }
-
-private:
-    elem& find_elem (entity e)
-        {
-            auto f (entities_.find(e.id()));
-            if (f == entities_.end())
-                throw std::logic_error("unknown entity");
-
-            return f->second;
-        }
-
-    const elem& find_elem (entity e) const
-        {
-            auto f (entities_.find(e.id()));
-            if (f == entities_.end())
-                throw std::logic_error("unknown entity");
-
-            return f->second;
         }
 
     size_t offset (const elem& e, component_id c) const

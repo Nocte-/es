@@ -130,3 +130,39 @@ BOOST_AUTO_TEST_CASE (structor_test)
     BOOST_CHECK_EQUAL(tester::count_constr, 2);
     BOOST_CHECK_EQUAL(tester::count_destr, 2);
 }
+
+BOOST_AUTO_TEST_CASE (system_test_1)
+{
+    storage s;
+
+    auto health (s.register_component<int>("health"));
+    auto pos    (s.register_component<vector>("position"));
+
+    s.new_entities(4);
+
+    s.set(0, health, 10);
+    s.set(1, health, 20);
+    s.set(1, pos, vector{1, 2, 3});
+    s.set(2, pos, vector{2, 4, 8});
+    s.set(3, pos, vector{5, 12, 23});
+
+    s.for_each<int>(health, [](storage::iterator i, storage::var_ref<int> var)
+        {
+            var = int(var) + 3;
+        });
+
+    BOOST_CHECK_EQUAL(s.get<int>(0, health), 13);
+    BOOST_CHECK_EQUAL(s.get<int>(1, health), 23);
+
+    s.for_each<vector>(pos, [](storage::iterator i, storage::var_ref<vector> var)
+        {
+            vector p (var);
+            p.x += 1;
+            var = p;
+        });
+
+    BOOST_CHECK_EQUAL(s.get<vector>(1, pos).x, 2);
+    BOOST_CHECK_EQUAL(s.get<vector>(2, pos).x, 3);
+}
+
+
