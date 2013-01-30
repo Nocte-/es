@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <bitset>
 #include <cassert>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -36,7 +37,11 @@ namespace ecs {
  */
 class storage
 {
-private:
+    // It is assumed the first few components will be accessed the
+    // most often.  We keep a cache of the first 12.
+    static constexpr int      cache_size = 12;
+    static constexpr uint32_t cache_mask = (1 << cache_size) - 1;
+
     struct elem
     {
         std::bitset<64>     components;
@@ -51,7 +56,9 @@ private:
     public:
         holder () { }
         holder (t init) : held_(std::move(init)) { }
+
         const t& held() const { return held_; }
+        t&       held()       { return held_; }
 
     private:
         t held_;
@@ -70,6 +77,15 @@ public:
     class var_ref
     {
         friend class storage;
+
+        type& get()
+        {
+            if (is_flat<type>::value)
+                return *reinterpret_cast<type*>(&*e_.data.begin() + offset_);
+
+            auto ptr (reinterpret_cast<holder<type>*>(&*e_.data.begin() + offset_));
+            return ptr->held();
+        }
 
     public:
         operator const type& () const
@@ -95,6 +111,29 @@ public:
             return *this;
         }
 
+        template <typename s>
+        var_ref& operator+= (s val)
+        {
+            get() += val; return *this;
+        }
+
+        template <typename s>
+        var_ref& operator-= (s val)
+        {
+            get() -= val; return *this;
+        }
+
+        template <typename s>
+        var_ref& operator*= (s val)
+        {
+            get() *= val; return *this;
+        }
+
+        template <typename s>
+        var_ref& operator/= (s val)
+        {
+            get() /= val; return *this;
+        }
 
     protected:
         var_ref (size_t offset, elem& e)
@@ -131,7 +170,7 @@ public:
                                          std::unique_ptr<placeholder>(new holder<type>()));
             }
 
-            if (components_.size() < 10)
+            if (components_.size() < cache_size)
             {
                 size_t i (component_offsets_.size());
                 component_offsets_.resize(i * 2);
@@ -232,6 +271,44 @@ public:
             }
         }
 
+    template <typename t1, typename t2>
+    void for_each (component_id c1, component_id c2,
+                   std::function<void(iterator, var_ref<t1>, var_ref<t2>)> func)
+        {
+            std::bitset<64> mask;
+            mask.set(c1);
+            mask.set(c2);
+            for (auto i (entities_.begin()); i != entities_.end(); ++i)
+            {
+                elem& e (i->second);
+                if ((e.components & mask) == mask)
+                {
+                    func(i, var_ref<t1>(offset(e, c1), e),
+                            var_ref<t2>(offset(e, c2), e));
+                }
+            }
+        }
+
+    template <typename t1, typename t2, typename t3>
+    void for_each (component_id c1, component_id c2, component_id c3,
+                   std::function<void(iterator, var_ref<t1>, var_ref<t2>, var_ref<t3>)> func)
+        {
+            std::bitset<64> mask;
+            mask.set(c1);
+            mask.set(c2);
+            mask.set(c3);
+            for (auto i (entities_.begin()); i != entities_.end(); ++i)
+            {
+                elem& e (i->second);
+                if ((e.components & mask) == mask)
+                {
+                    func(i, var_ref<t1>(offset(e, c1), e),
+                            var_ref<t2>(offset(e, c2), e),
+                            var_ref<t3>(offset(e, c3), e));
+                }
+            }
+        }
+
     bool exists (entity en) const
         { return entities_.count(en.id()); }
 
@@ -292,8 +369,11 @@ private:
 
     size_t offset (const elem& e, component_id c) const
         {
-            size_t result (0);
-            for (component_id search (0); search != c; ++search)
+            assert(c < components_.size());
+            assert((c & cache_mask) < component_offsets_.size());
+            size_t result (component_offsets_[c & cache_mask]);
+
+            for (component_id search (cache_size); search < c; ++search)
             {
                 if (e.components[search])
                     result += components_[search].size();
