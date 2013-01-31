@@ -8,7 +8,7 @@ struct vec
 {
     float x, y;
 
-    void operator += (vec a) { x += a.x; y += a.y; }
+    void operator += (const vec& a) { x += a.x; y += a.y; }
 };
 
 namespace ecs

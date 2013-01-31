@@ -39,7 +39,7 @@ class storage
 {
     // It is assumed the first few components will be accessed the
     // most often.  We keep a cache of the first 12.
-    static constexpr int      cache_size = 12;
+    static constexpr uint32_t cache_size = 12;
     static constexpr uint32_t cache_mask = (1 << cache_size) - 1;
 
     struct elem
@@ -325,16 +325,22 @@ public:
 
             if (!e.components[c_id])
             {
-                e.data.insert(e.data.begin() + off, c.size(), 0);
+                if (e.data.size() < off)
+                    e.data.resize(off + c.size());
+                else
+                    e.data.insert(e.data.begin() + off, c.size(), 0);
+
                 e.components.set(c_id);
             }
 
             if (is_flat<type>::value)
             {
+                assert(e.data.size() >= off + sizeof(type));
                 new (&*e.data.begin() + off) type(std::move(val));
             }
             else
             {
+                assert(e.data.size() >= off + sizeof(holder<type>));
                 auto ptr (reinterpret_cast<holder<type>*>(&*e.data.begin() + off));
                 new (ptr) holder<type>(std::move(val));
             }
@@ -378,7 +384,6 @@ private:
                 if (e.components[search])
                     result += components_[search].size();
             }
-            assert(e.data.size() >= result);
             return result;
         }
 
