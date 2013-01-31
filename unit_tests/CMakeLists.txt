@@ -4,10 +4,8 @@ set(EXE unit_tests)
 
 add_definitions(-DBOOST_TEST_DYN_LINK) 
 
-file(GLOB SOURCE_FILES "*.cpp")
-file(GLOB HEADER_FILES "*.hpp")
-
-add_executable(${EXE} ${SOURCE_FILES} ${HEADER_FILES})
+set(SOURCE_FILES "unit_tests.cpp")
+add_executable(${EXE} ${SOURCE_FILES})
 
 include_directories(..)
 
