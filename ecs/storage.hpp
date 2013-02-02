@@ -22,18 +22,16 @@
 
 namespace ecs {
 
-/** A storage ties together entities and components.
- *  This storage associates two other bits of data with every entity:
- *  - A 64-bit mask that keeps track of which components are defined
- *  - A vector of bytes, holding the actual data
+/** A storage ties entities and components together.
+ * Storage associates two other bits of data with every entity:
+ * - A 64-bit mask that keeps track of which components are defined
+ * - A vector of bytes, holding the actual data
  *
- *  The vector of bytes tries to pack the component data as tightly as
- *  possible.  It is really fast for plain old datatypes, but it also
- *  handles nontrivial types safely.  It packs a virtual table and a
- *  pointer to some heap space in the vector, and calls the constructor
- *  and destructor as needed.
- *
- *
+ * The vector of bytes tries to pack the component data as tightly as
+ * possible.  It is really fast for plain old datatypes, but it also
+ * handles nontrivial types safely.  It packs a virtual table and a
+ * pointer to some heap space in the vector, and calls the constructor
+ * and destructor as needed.
  */
 class storage
 {
@@ -42,14 +40,19 @@ class storage
     static constexpr uint32_t cache_size = 12;
     static constexpr uint32_t cache_mask = (1 << cache_size) - 1;
 
+    /** This data gets associated with every entity. */
     struct elem
     {
+        /** Bitmask to keep track of which components are held in \a data. */
         std::bitset<64>     components;
+        /** Component data for this entity. */
         std::vector<char>   data;
     };
 
     typedef component::placeholder placeholder;
 
+    /** Data types that do not have a flat memory layout are kept in the 
+     ** elem::data buffer in a placeholder object. */
     template <typename t>
     class holder : public placeholder
     {
@@ -59,6 +62,8 @@ class storage
 
         const t& held() const { return held_; }
         t&       held()       { return held_; }
+
+        placeholder* clone() const { return new holder<t>(held_); }
 
     private:
         t held_;
@@ -73,6 +78,9 @@ public:
     typedef stor_impl::const_iterator   const_iterator;
 
 public:
+    /** Variable references are used by systems to access an entity's data.
+     *  It keeps track of the elem::data buffer and the offset inside that
+     *  buffer. */
     template <typename type>
     class var_ref
     {
@@ -113,32 +121,24 @@ public:
 
         template <typename s>
         var_ref& operator+= (s val)
-        {
-            get() += val; return *this;
-        }
+            { get() += val; return *this; }
 
         template <typename s>
         var_ref& operator-= (s val)
-        {
-            get() -= val; return *this;
-        }
+            { get() -= val; return *this; }
 
         template <typename s>
         var_ref& operator*= (s val)
-        {
-            get() *= val; return *this;
-        }
+            { get() *= val; return *this; }
 
         template <typename s>
         var_ref& operator/= (s val)
-        {
-            get() /= val; return *this;
-        }
+            { get() /= val; return *this; }
 
     protected:
         var_ref (size_t offset, elem& e)
             : offset_(offset), e_(e)
-        { }
+            { }
 
     private:
         size_t offset_;
@@ -203,6 +203,9 @@ public:
             return next_id_ - 1;
         }
 
+    /** Create a whole bunch of empty entities in one go.
+     * @param count     The number of entities to create
+     * @return The range of entities created */
     std::pair<entity, entity> new_entities (size_t count)
         {
             auto range_begin (next_id_);
@@ -210,6 +213,31 @@ public:
                 entities_[next_id_++];
 
             return std::make_pair(range_begin, next_id_);
+        }
+
+    entity clone_entity (iterator f)
+        {
+            elem& e (f->second);
+            entities_[next_id_++] = e;
+
+            // Quick check if we need to make deep copies
+            if ((e.components & flat_mask_).any())
+            {
+                size_t off (0);
+                for (int c_id (0); c_id < 64 && off < e.data.size(); ++c_id)
+                {
+                    if (e.components[c_id])
+                    {
+                        if (!components_[c_id].is_flat())
+                        {
+                            auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
+                            ptr = ptr->clone();
+                        }
+                        off += components_[c_id].size();
+                    }
+                }
+            }
+            return next_id_ - 1;
         }
 
     iterator find (entity en)
@@ -258,16 +286,44 @@ public:
             entities_.erase(f);
         }
 
+    void remove_component_from_entity (iterator en, component_id c)
+        {
+            auto& e (en->second);
+            if (!e.components[c])
+                return;
+
+            size_t off (offset(e, c));
+            auto& comp_info (components_[c]);
+            if (!comp_info.is_flat())
+            {
+                auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
+                ptr->~placeholder();
+            }
+            auto o (e.data.begin() + off);
+            e.data.erase(o, o + comp_info.size());
+            e.components.reset(c);
+        }
+
+    /** Call a function for every entity that has a given component.
+     *  The callee can then query and change the value of the component through
+     *  a var_ref object, or remove the entity.
+     * @param c     The component to look for.
+     * @param func  The function to call.  This function will be passed an 
+     *              iterator to the current entity, and a var_ref corresponding
+     *              to the component value in this entity. */
     template <typename t>
     void for_each (component_id c, std::function<void(iterator, var_ref<t>)> func)
         {
             std::bitset<64> mask;
             mask.set(c);
-            for (auto i (entities_.begin()); i != entities_.end(); ++i)
+            for (auto i (entities_.begin()); i != entities_.end(); )
             {
+                auto next (std::next(i));
                 elem& e (i->second);
                 if ((e.components & mask) == mask)
                     func(i, var_ref<t>(offset(e, c), e));
+
+                i = next;
             }
         }
 
@@ -280,12 +336,14 @@ public:
             mask.set(c2);
             for (auto i (entities_.begin()); i != entities_.end(); ++i)
             {
+                auto next (std::next(i));
                 elem& e (i->second);
                 if ((e.components & mask) == mask)
                 {
                     func(i, var_ref<t1>(offset(e, c1), e),
                             var_ref<t2>(offset(e, c2), e));
                 }
+                i = next;
             }
         }
 
@@ -299,6 +357,7 @@ public:
             mask.set(c3);
             for (auto i (entities_.begin()); i != entities_.end(); ++i)
             {
+                auto next (std::next(i));
                 elem& e (i->second);
                 if ((e.components & mask) == mask)
                 {
@@ -306,6 +365,7 @@ public:
                             var_ref<t2>(offset(e, c2), e),
                             var_ref<t3>(offset(e, c3), e));
                 }
+                i = next;
             }
         }
 

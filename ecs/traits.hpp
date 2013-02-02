@@ -11,9 +11,12 @@
 namespace ecs {
 
 /** Determine if a given type has a flat memory layout.
- *  By default, it uses std::is_trivial, which is always safe but
- *  not always optimal.  You can specialize is_flat for your own
- *  types if neccesary. */
+ *  By default, it uses std::is_trivial, which is always safe but not always
+ *  optimal.  You can specialize is_flat for your own types if neccesary.
+ *
+ *  Note: other queries than is_trivial could make an even better default,
+ *  but they're not consistently supported across compilers.
+ */
 template <typename t>
 struct is_flat
 {
@@ -21,3 +24,4 @@ struct is_flat
 };
 
 } // namespace ecs
+

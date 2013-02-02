@@ -10,9 +10,13 @@
 
 namespace ecs {
 
-/** An entity is nothing more than a 32-bit integer.
- *  See \a storage for a description of how to combine entities and
- *  components. */
+/** An entity.
+ * On its own, an entity is nothing more than a 32-bit integer that
+ * corresponds to a "thing" in your game.  So on its own, it's not very
+ * useful.  By assigning components to entities, you can describe the
+ * different aspects of the "thing": it could have a position, a speed,
+ * health, a name, enchantments.  This coupling is done in a \a storage
+ * object. */ 
 class entity
 {
 public:
@@ -25,3 +29,4 @@ private:
 };
 
 } // namespace ecs
+

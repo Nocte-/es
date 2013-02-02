@@ -91,6 +91,9 @@ public:
     tester() : data("test")
         { ++count_constr; }
 
+    tester(const tester& copy) : data(copy.data)
+        { ++count_constr; }
+
     tester(tester&& move) : data(std::move(move.data))
         { --count_destr; }
 
@@ -148,7 +151,7 @@ BOOST_AUTO_TEST_CASE (system_test_1)
 
     s.for_each<int>(health, [](storage::iterator i, storage::var_ref<int> var)
         {
-            var = int(var) + 3;
+            var += 3;
         });
 
     BOOST_CHECK_EQUAL(s.get<int>(0, health), 13);
