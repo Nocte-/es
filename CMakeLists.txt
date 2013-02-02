@@ -1,6 +1,6 @@
-project(ecs)
+project(es)
 cmake_minimum_required(VERSION 2.8.3)
-set(CPACK_PACKAGE_NAME "ecs")
+set(CPACK_PACKAGE_NAME "es")
 
 set(VERSION_MAJOR "0")
 set(VERSION_MINOR "1")
@@ -60,7 +60,7 @@ if(BUILD_DOCUMENTATION)
   endif()
 endif()
 
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Fast C++ entity-component framework")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Fast C++ entity system")
 set(CPACK_PACKAGE_VENDOR "Nocte")
 set(CPACK_PACKAGE_CONTACT "Nocte <nocte@hippie.nu>")
 set(CPACK_SOURCE_IGNORE_FILES "CMakefiles;Makefile;CMakeCache.txt;_CPack_Packages;/.git/;.gitignore;.travis.yml")

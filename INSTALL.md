@@ -1,7 +1,7 @@
 Installation
 ============
 
-ECS is built using [CMake](http://www.cmake.org/).  To keep the source tree
+ES is built using [CMake](http://www.cmake.org/).  To keep the source tree
 clean, it is a good idea to build it in a separate directory:
 
  *  mkdir build; cd build

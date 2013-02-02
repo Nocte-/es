@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------
-/// \file   ecs/storage.hpp
+/// \file   es/storage.hpp
 /// \brief  The entity/component data store
 //
 // Copyright 2013, nocte@hippie.nu            Released under the MIT License.
@@ -20,7 +20,7 @@
 #include "entity.hpp"
 #include "traits.hpp"
 
-namespace ecs {
+namespace es {
 
 /** A storage ties entities and components together.
  * Storage associates two other bits of data with every entity:
@@ -462,4 +462,4 @@ private:
     std::bitset<64>                     flat_mask_;
 };
 
-} // namespace ecs
+} // namespace es

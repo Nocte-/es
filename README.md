@@ -1,10 +1,10 @@
-Entity-Component Framework
-==========================
+Entity System
+=============
 
-A fast and compact [entity-component framework](http://t-machine.org/index.php/2007/09/03/entity-systems-are-the-future-of-mmog-development-part-1/)
+A fast and compact [entity system](http://t-machine.org/index.php/2007/09/03/entity-systems-are-the-future-of-mmog-development-part-1/)
 in C++.  Its main features are:
 
-* Really, really fast.
+* Really fast. 
 * Tries hard to conserve memory.
 * Components can be defined at runtime.
 * Plays nice with existing code: multiple components can have the same type, and there's no need to inherit them from a base class.
@@ -14,14 +14,14 @@ Example
 
 ```c++
 
-#include <ecs/entity.hpp>
-#include <ecs/component.hpp>
-#include <ecs/storage.hpp>
+#include <es/entity.hpp>
+#include <es/component.hpp>
+#include <es/storage.hpp>
 
 
 main()
 {
-    using namespace ecs;
+    using namespace es;
     typedef hexa::vector3<float> vec;
 
     storage s;

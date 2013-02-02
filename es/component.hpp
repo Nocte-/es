@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------
-/// \file   ecs/component.hpp
+/// \file   es/component.hpp
 /// \brief  A component is a data type that can be assigned to entities
 //
 // Copyright 2013, nocte@hippie.nu            Released under the MIT License.
@@ -10,7 +10,7 @@
 #include <string>
 #include <typeinfo>
 
-namespace ecs {
+namespace es {
 
 class storage;
 
@@ -67,5 +67,5 @@ private:
     std::unique_ptr<placeholder> ph_;
 };
 
-} // namespace ecs
+} // namespace es
 

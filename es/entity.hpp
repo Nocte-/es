@@ -1,5 +1,5 @@
 //---------------------------------------------------------------------------
-/// \file   hexa/ecs/entity.hpp
+/// \file   es/entity.hpp
 /// \brief  An entity
 //
 // Copyright 2013, nocte@hippie.nu            Released under the MIT License.
@@ -8,7 +8,7 @@
 
 #include <cstdint>
 
-namespace ecs {
+namespace es {
 
 /** An entity.
  * On its own, an entity is nothing more than a 32-bit integer that
@@ -28,5 +28,5 @@ private:
     uint32_t            id_;
 };
 
-} // namespace ecs
+} // namespace es
 
