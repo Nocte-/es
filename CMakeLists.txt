@@ -38,7 +38,7 @@ else() # Most likely gcc or clang
     set(CMAKE_LIB_LINKER_FLAGS  "-s")    
 endif()
 
-add_subdirectory(ecs)
+add_subdirectory(es)
 
 if(BUILD_UNITTESTS)
   add_subdirectory(unit_tests)

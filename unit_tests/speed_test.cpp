@@ -1,8 +1,8 @@
-#include <ecs/entity.hpp>
-#include <ecs/component.hpp>
-#include <ecs/storage.hpp>
+#include <es/entity.hpp>
+#include <es/component.hpp>
+#include <es/storage.hpp>
 
-using namespace ecs;
+using namespace es;
 
 struct vec
 {
@@ -11,7 +11,7 @@ struct vec
     void operator += (const vec& a) { x += a.x; y += a.y; }
 };
 
-namespace ecs
+namespace es
 {
 template <> struct is_flat<vec> { static constexpr bool value = true; };
 }

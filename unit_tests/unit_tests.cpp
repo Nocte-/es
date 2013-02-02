@@ -1,13 +1,13 @@
 
-#define BOOST_TEST_MODULE ecs_unittests test
+#define BOOST_TEST_MODULE es_unittests test
 #include <boost/test/unit_test.hpp>
 
 #include <string>
 
-#include <ecs/traits.hpp>
-#include <ecs/storage.hpp>
+#include <es/traits.hpp>
+#include <es/storage.hpp>
 
-using namespace ecs;
+using namespace es;
 
 struct vector
 {
@@ -22,7 +22,7 @@ struct flat_test : public vector
     float a, b;
 };
 
-namespace ecs {
+namespace es {
 
 template<>
 struct is_flat<flat_test>
@@ -34,10 +34,10 @@ struct is_flat<flat_test>
 
 BOOST_AUTO_TEST_CASE (prerequisites)
 {
-    BOOST_CHECK(ecs::is_flat<vector>::value);
-    BOOST_CHECK(ecs::is_flat<int>::value);
-    BOOST_CHECK(!ecs::is_flat<std::string>::value);
-    BOOST_CHECK(ecs::is_flat<flat_test>::value);
+    BOOST_CHECK(es::is_flat<vector>::value);
+    BOOST_CHECK(es::is_flat<int>::value);
+    BOOST_CHECK(!es::is_flat<std::string>::value);
+    BOOST_CHECK(es::is_flat<flat_test>::value);
 }
 
 BOOST_AUTO_TEST_CASE (basic_test)
