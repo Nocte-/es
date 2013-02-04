@@ -1,3 +1,5 @@
+[![Build status](https://travis-ci.org/Nocte-/es.png?branch=master)](https://travis-ci.org/Nocte-/es)
+
 Entity System
 =============
 
