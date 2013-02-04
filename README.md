@@ -1,5 +1,3 @@
-[![Build status](https://travis-ci.org/Nocte-/es.png?branch=master)](https://travis-ci.org/Nocte-/es)
-
 Entity System
 =============
 
@@ -59,4 +57,11 @@ License
 -------
 This library is released under the terms and conditions of the MIT License.
 See the file 'LICENSE' for more information.
+
+
+Build status
+------------
+[![Build status](https://travis-ci.org/Nocte-/es.png?branch=master)](https://travis-ci.org/Nocte-/es)
+This project uses [Travis CI](http://travis-ci.org/) to build and run the unit
+tests on different compilers automatically.
 
