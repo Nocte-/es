@@ -203,6 +203,15 @@ public:
             return next_id_ - 1;
         }
 
+    /** Get an entity with a given ID, or create it if it didn't exist yet. */
+    iterator make (uint32_t id)
+        {
+            if (next_id_ <= id)
+                next_id_ = id + 1;
+
+            return entities_.insert(entities_.end(), std::make_pair(id, elem()));
+        }
+
     /** Create a whole bunch of empty entities in one go.
      * @param count     The number of entities to create
      * @return The range of entities created */
@@ -334,7 +343,7 @@ public:
             std::bitset<64> mask;
             mask.set(c1);
             mask.set(c2);
-            for (auto i (entities_.begin()); i != entities_.end(); )
+            for (auto i (entities_.begin()); i != entities_.end(); ++i)
             {
                 auto next (std::next(i));
                 elem& e (i->second);
@@ -355,7 +364,7 @@ public:
             mask.set(c1);
             mask.set(c2);
             mask.set(c3);
-            for (auto i (entities_.begin()); i != entities_.end(); )
+            for (auto i (entities_.begin()); i != entities_.end(); ++i)
             {
                 auto next (std::next(i));
                 elem& e (i->second);
