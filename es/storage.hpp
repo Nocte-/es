@@ -343,7 +343,7 @@ public:
             std::bitset<64> mask;
             mask.set(c1);
             mask.set(c2);
-            for (auto i (entities_.begin()); i != entities_.end(); ++i)
+            for (auto i (entities_.begin()); i != entities_.end(); )
             {
                 auto next (std::next(i));
                 elem& e (i->second);
@@ -364,7 +364,7 @@ public:
             mask.set(c1);
             mask.set(c2);
             mask.set(c3);
-            for (auto i (entities_.begin()); i != entities_.end(); ++i)
+            for (auto i (entities_.begin()); i != entities_.end(); )
             {
                 auto next (std::next(i));
                 elem& e (i->second);
