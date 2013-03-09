@@ -11,22 +11,12 @@
 namespace es {
 
 /** An entity.
- * On its own, an entity is nothing more than a 32-bit integer that
- * corresponds to a "thing" in your game.  So on its own, it's not very
- * useful.  By assigning components to entities, you can describe the
- * different aspects of the "thing": it could have a position, a speed,
- * health, a name, enchantments.  This coupling is done in a \a storage
- * object. */ 
-class entity
-{
-public:
-    entity(uint32_t id) : id_(id) { }
-
-    uint32_t id() const { return id_; }
-
-private:
-    uint32_t            id_;
-};
+ * An entity is nothing more than a 32-bit integer that uniquely identifies a
+ * "thing" in your game.  So on its own, it's not very useful.  By assigning
+ * components to entities, you can describe the different aspects of the
+ * "thing": it could have a position, a speed, health, a name, enchantments.
+ * This coupling is done in a \a storage object. */ 
+typedef uint32_t entity;
 
 } // namespace es
 

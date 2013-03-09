@@ -251,7 +251,7 @@ public:
 
     iterator find (entity en)
         {
-            auto found (entities_.find(en.id()));
+            auto found (entities_.find(en));
             if (found == entities_.end())
                 throw std::logic_error("unknown entity");
 
@@ -260,7 +260,7 @@ public:
 
     const_iterator find (entity en) const
         {
-            auto found (entities_.find(en.id()));
+            auto found (entities_.find(en));
             if (found == entities_.end())
                 throw std::logic_error("unknown entity");
 
@@ -379,7 +379,7 @@ public:
         }
 
     bool exists (entity en) const
-        { return entities_.count(en.id()); }
+        { return entities_.count(en); }
 
     template <typename type>
     void set (entity en, component_id c_id, type val)
