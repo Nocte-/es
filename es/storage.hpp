@@ -51,14 +51,15 @@ class storage
 
     typedef component::placeholder placeholder;
 
-    /** Data types that do not have a flat memory layout are kept in the 
+    /** Data types that do not have a flat memory layout are kept in the
      ** elem::data buffer in a placeholder object. */
     template <typename t>
     class holder : public placeholder
     {
     public:
         holder () { }
-        holder (t init) : held_(std::move(init)) { }
+        holder (t&& init) : held_(std::move(init)) { }
+        holder (const t& init) : held_(init) { }
 
         const t& held() const { return held_; }
         t&       held()       { return held_; }
@@ -92,8 +93,6 @@ public:
                 return *reinterpret_cast<type*>(&*e_.data.begin() + offset_);
 
             auto ptr (reinterpret_cast<holder<type>*>(&*e_.data.begin() + offset_));
-            assert(ptr);
-
             return ptr->held();
         }
 
@@ -104,8 +103,6 @@ public:
                 return *reinterpret_cast<const type*>(&*e_.data.begin() + offset_);
 
             auto ptr (reinterpret_cast<const holder<type>*>(&*e_.data.begin() + offset_));
-            assert(ptr);
-
             return ptr->held();
         }
 
@@ -244,8 +241,7 @@ public:
                         if (!components_[c_id].is_flat())
                         {
                             auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
-                            if (ptr)
-                                ptr = ptr->clone();
+                            ptr = ptr->clone();
                         }
                         off += components_[c_id].size();
                     }
@@ -272,9 +268,14 @@ public:
             return found;
         }
 
+    size_t size() const
+        {
+            return entities_.size();
+        }
+
     bool delete_entity (entity en)
-        { 
-            auto found (find(en)); 
+        {
+            auto found (find(en));
             if (found != entities_.end())
             {
                 delete_entity(found);
@@ -298,8 +299,7 @@ public:
                         if (!components_[search].is_flat())
                         {
                             auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
-                            if (ptr)
-                                ptr->~placeholder();
+                            ptr->~placeholder();
                         }
                         off += components_[search].size();
                     }
@@ -332,7 +332,7 @@ public:
      *  The callee can then query and change the value of the component through
      *  a var_ref object, or remove the entity.
      * @param c     The component to look for.
-     * @param func  The function to call.  This function will be passed an 
+     * @param func  The function to call.  This function will be passed an
      *              iterator to the current entity, and a var_ref corresponding
      *              to the component value in this entity. */
     template <typename t>
@@ -453,8 +453,6 @@ private:
                 return *reinterpret_cast<const type*>(&*e.data.begin() + off);
 
             auto ptr (reinterpret_cast<const holder<type>*>(&*e.data.begin() + off));
-            assert(ptr);
-
             return ptr->held();
         }
 
@@ -462,7 +460,7 @@ private:
         {
             assert(c < components_.size());
             assert((c & cache_mask) < component_offsets_.size());
-            size_t result (component_offsets_[c & cache_mask]);
+            size_t result (component_offsets_[c & e.components.to_ulong() & cache_mask]);
 
             for (component_id search (cache_size); search < c; ++search)
             {

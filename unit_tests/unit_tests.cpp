@@ -4,8 +4,8 @@
 
 #include <string>
 
-#include <es/traits.hpp>
-#include <es/storage.hpp>
+#include "../es/traits.hpp"
+#include "../es/storage.hpp"
 
 using namespace es;
 
@@ -79,6 +79,37 @@ BOOST_AUTO_TEST_CASE (pod_test)
     BOOST_CHECK(s.components()[health].is_flat());
     BOOST_CHECK(s.components()[pos].is_flat());
     BOOST_CHECK(!s.components()[name].is_flat());
+}
+
+BOOST_AUTO_TEST_CASE (delete_test)
+{
+    storage s;
+
+    auto name   (s.register_component<std::string>("name"));
+
+    entity player (s.new_entity());
+    s.set(player, name,   std::string("Timmy"));
+    BOOST_CHECK_EQUAL(s.size(), 1);
+    s.delete_entity(player);
+    BOOST_CHECK_EQUAL(s.size(), 0);
+}
+
+BOOST_AUTO_TEST_CASE (shuffle_test)
+{
+    // Almost the same as delete_test, but involves cleaning up a string
+    // after it was moved to a different location.
+
+    storage s;
+
+    auto health (s.register_component<float>("health"));
+    auto name   (s.register_component<std::string>("name"));
+
+    entity player (s.new_entity());
+    s.set(player, name,   std::string("Timmy"));
+    s.set(player, health, 10.0f);
+    BOOST_CHECK_EQUAL(s.size(), 1);
+    s.delete_entity(player);
+    BOOST_CHECK_EQUAL(s.size(), 0);
 }
 
 class tester
