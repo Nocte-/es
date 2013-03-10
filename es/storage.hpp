@@ -268,7 +268,11 @@ public:
         }
 
     void delete_entity (entity en)
-        { delete_entity(find(en)); }
+        { 
+            auto found (find(en)); 
+            if (found != entities_.end())
+                delete_entity(found);
+        }
 
     void delete_entity (iterator f)
         {
