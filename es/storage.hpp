@@ -92,6 +92,8 @@ public:
                 return *reinterpret_cast<type*>(&*e_.data.begin() + offset_);
 
             auto ptr (reinterpret_cast<holder<type>*>(&*e_.data.begin() + offset_));
+            assert(ptr);
+
             return ptr->held();
         }
 
@@ -102,6 +104,8 @@ public:
                 return *reinterpret_cast<const type*>(&*e_.data.begin() + offset_);
 
             auto ptr (reinterpret_cast<const holder<type>*>(&*e_.data.begin() + offset_));
+            assert(ptr);
+
             return ptr->held();
         }
 
@@ -240,7 +244,8 @@ public:
                         if (!components_[c_id].is_flat())
                         {
                             auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
-                            ptr = ptr->clone();
+                            if (ptr)
+                                ptr = ptr->clone();
                         }
                         off += components_[c_id].size();
                     }
@@ -267,11 +272,15 @@ public:
             return found;
         }
 
-    void delete_entity (entity en)
+    bool delete_entity (entity en)
         { 
             auto found (find(en)); 
             if (found != entities_.end())
+            {
                 delete_entity(found);
+                return true;
+            }
+            return false;
         }
 
     void delete_entity (iterator f)
@@ -289,7 +298,8 @@ public:
                         if (!components_[search].is_flat())
                         {
                             auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
-                            ptr->~placeholder();
+                            if (ptr)
+                                ptr->~placeholder();
                         }
                         off += components_[search].size();
                     }
@@ -310,7 +320,8 @@ public:
             if (!comp_info.is_flat())
             {
                 auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
-                ptr->~placeholder();
+                if (ptr)
+                    ptr->~placeholder();
             }
             auto o (e.data.begin() + off);
             e.data.erase(o, o + comp_info.size());
@@ -442,6 +453,7 @@ private:
                 return *reinterpret_cast<const type*>(&*e.data.begin() + off);
 
             auto ptr (reinterpret_cast<const holder<type>*>(&*e.data.begin() + off));
+            assert(ptr);
 
             return ptr->held();
         }
