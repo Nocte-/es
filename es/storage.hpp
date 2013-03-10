@@ -460,13 +460,15 @@ private:
         {
             assert(c < components_.size());
             assert((c & cache_mask) < component_offsets_.size());
-            size_t result (component_offsets_[c & e.components.to_ulong() & cache_mask]);
+
+            size_t result (component_offsets_[((1 << c) - 1) & e.components.to_ulong() & cache_mask]);
 
             for (component_id search (cache_size); search < c; ++search)
             {
                 if (e.components[search])
                     result += components_[search].size();
             }
+
             return result;
         }
 
