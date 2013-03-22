@@ -45,6 +45,8 @@ class storage
     {
         /** Bitmask to keep track of which components are held in \a data. */
         std::bitset<64>     components;
+        /** Bitmask to keep track of which components have changed. */
+        std::bitset<64>     dirty;
         /** Component data for this entity. */
         std::vector<char>   data;
     };
@@ -87,6 +89,9 @@ public:
     {
         friend class storage;
 
+        void touch() const
+            { e_.dirty.set(component_); }
+
         type& get()
         {
             if (is_flat<type>::value)
@@ -117,41 +122,39 @@ public:
                 auto ptr (reinterpret_cast<holder<type>*>(&*e_.data.begin() + offset_));
                 new (ptr) holder<type>(std::move(assign));
             }
+            touch();
             return *this;
         }
 
         template <typename s>
         var_ref& operator+= (s val)
-            { get() += val; return *this; }
+            { get() += val; touch(); return *this; }
 
         template <typename s>
         var_ref& operator-= (s val)
-            { get() -= val; return *this; }
+            { get() -= val; touch(); return *this; }
 
         template <typename s>
         var_ref& operator*= (s val)
-            { get() *= val; return *this; }
+            { get() *= val; touch(); return *this; }
 
         template <typename s>
         var_ref& operator/= (s val)
-            { get() /= val; return *this; }
+            { get() /= val; touch(); return *this; }
 
     protected:
-        var_ref (size_t offset, elem& e)
-            : offset_(offset), e_(e)
+        var_ref (size_t offset, elem& e, component_id c)
+            : offset_(offset), e_(e), component_(c)
             { }
 
     private:
-        size_t offset_;
-        elem&  e_;
+        size_t          offset_;
+        elem&           e_;
+        component_id    component_;
     };
 
 public:
-    storage()
-        : next_id_(0)
-        {
-            component_offsets_.push_back(0);
-        }
+    storage();
 
     template <typename type>
     component_id register_component (std::string name)
@@ -161,13 +164,13 @@ public:
             if (is_flat<type>::value)
             {
                 size = sizeof(type);
-                components_.emplace_back(name, size, nullptr);
+                components_.emplace_back(std::move(name), size, nullptr);
             }
             else
             {
                 flat_mask_.set(components_.size());
                 size = sizeof(holder<type>);
-                components_.emplace_back(name, size,
+                components_.emplace_back(std::move(name), size,
                                          std::unique_ptr<placeholder>(new holder<type>()));
             }
 
@@ -182,14 +185,7 @@ public:
             return components_.size() - 1;
         }
 
-    component_id find_component (const std::string& name) const
-        {
-            auto found (std::find(components_.begin(), components_.end(), name));
-            if (found == components_.end())
-                throw std::logic_error("component does not exist");
-
-            return std::distance(components_.begin(), found);
-        }
+    component_id find_component (const std::string& name) const;
 
     const component& operator[] (component_id id) const
         { return components_[id]; }
@@ -198,200 +194,29 @@ public:
         { return components_; }
 
 public:
-    entity new_entity()
-        {
-            entities_[next_id_++];
-            return next_id_ - 1;
-        }
+    entity new_entity();
 
     /** Get an entity with a given ID, or create it if it didn't exist yet. */
-    iterator make (uint32_t id)
-        {
-            if (next_id_ <= id)
-                next_id_ = id + 1;
-
-            return entities_.insert(entities_.end(), std::make_pair(id, elem()));
-        }
+    iterator make (uint32_t id);
 
     /** Create a whole bunch of empty entities in one go.
      * @param count     The number of entities to create
      * @return The range of entities created */
-    std::pair<entity, entity> new_entities (size_t count)
-        {
-            auto range_begin (next_id_);
-            for (; count > 0; --count)
-                entities_[next_id_++];
+    std::pair<entity, entity> new_entities (size_t count);
 
-            return std::make_pair(range_begin, next_id_);
-        }
+    entity clone_entity (iterator f);
 
-    entity clone_entity (iterator f)
-        {
-            elem& e (f->second);
-            entities_[next_id_++] = e;
+    iterator find (entity en);
 
-            // Quick check if we need to make deep copies
-            if ((e.components & flat_mask_).any())
-            {
-                size_t off (0);
-                for (int c_id (0); c_id < 64 && off < e.data.size(); ++c_id)
-                {
-                    if (e.components[c_id])
-                    {
-                        if (!components_[c_id].is_flat())
-                        {
-                            auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
-                            ptr = ptr->clone();
-                        }
-                        off += components_[c_id].size();
-                    }
-                }
-            }
-            return next_id_ - 1;
-        }
+    const_iterator find (entity en) const;
 
-    iterator find (entity en)
-        {
-            auto found (entities_.find(en));
-            if (found == entities_.end())
-                throw std::logic_error("unknown entity");
+    size_t size() const;
 
-            return found;
-        }
+    bool delete_entity (entity en);
 
-    const_iterator find (entity en) const
-        {
-            auto found (entities_.find(en));
-            if (found == entities_.end())
-                throw std::logic_error("unknown entity");
+    void delete_entity (iterator f);
 
-            return found;
-        }
-
-    size_t size() const
-        {
-            return entities_.size();
-        }
-
-    bool delete_entity (entity en)
-        {
-            auto found (find(en));
-            if (found != entities_.end())
-            {
-                delete_entity(found);
-                return true;
-            }
-            return false;
-        }
-
-    void delete_entity (iterator f)
-        {
-            elem& e (f->second);
-
-            // Quick check if we'll have to call any destructors.
-            if ((e.components & flat_mask_).any())
-            {
-                size_t off (0);
-                for (int search (0); search < 64 && off < e.data.size(); ++search)
-                {
-                    if (e.components[search])
-                    {
-                        if (!components_[search].is_flat())
-                        {
-                            auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
-                            ptr->~placeholder();
-                        }
-                        off += components_[search].size();
-                    }
-                }
-            }
-
-            entities_.erase(f);
-        }
-
-    void remove_component_from_entity (iterator en, component_id c)
-        {
-            auto& e (en->second);
-            if (!e.components[c])
-                return;
-
-            size_t off (offset(e, c));
-            auto& comp_info (components_[c]);
-            if (!comp_info.is_flat())
-            {
-                auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
-                if (ptr)
-                    ptr->~placeholder();
-            }
-            auto o (e.data.begin() + off);
-            e.data.erase(o, o + comp_info.size());
-            e.components.reset(c);
-        }
-
-    /** Call a function for every entity that has a given component.
-     *  The callee can then query and change the value of the component through
-     *  a var_ref object, or remove the entity.
-     * @param c     The component to look for.
-     * @param func  The function to call.  This function will be passed an
-     *              iterator to the current entity, and a var_ref corresponding
-     *              to the component value in this entity. */
-    template <typename t>
-    void for_each (component_id c, std::function<void(iterator, var_ref<t>)> func)
-        {
-            std::bitset<64> mask;
-            mask.set(c);
-            for (auto i (entities_.begin()); i != entities_.end(); )
-            {
-                auto next (std::next(i));
-                elem& e (i->second);
-                if ((e.components & mask) == mask)
-                    func(i, var_ref<t>(offset(e, c), e));
-
-                i = next;
-            }
-        }
-
-    template <typename t1, typename t2>
-    void for_each (component_id c1, component_id c2,
-                   std::function<void(iterator, var_ref<t1>, var_ref<t2>)> func)
-        {
-            std::bitset<64> mask;
-            mask.set(c1);
-            mask.set(c2);
-            for (auto i (entities_.begin()); i != entities_.end(); )
-            {
-                auto next (std::next(i));
-                elem& e (i->second);
-                if ((e.components & mask) == mask)
-                {
-                    func(i, var_ref<t1>(offset(e, c1), e),
-                            var_ref<t2>(offset(e, c2), e));
-                }
-                i = next;
-            }
-        }
-
-    template <typename t1, typename t2, typename t3>
-    void for_each (component_id c1, component_id c2, component_id c3,
-                   std::function<void(iterator, var_ref<t1>, var_ref<t2>, var_ref<t3>)> func)
-        {
-            std::bitset<64> mask;
-            mask.set(c1);
-            mask.set(c2);
-            mask.set(c3);
-            for (auto i (entities_.begin()); i != entities_.end(); )
-            {
-                auto next (std::next(i));
-                elem& e (i->second);
-                if ((e.components & mask) == mask)
-                {
-                    func(i, var_ref<t1>(offset(e, c1), e),
-                            var_ref<t2>(offset(e, c2), e),
-                            var_ref<t3>(offset(e, c3), e));
-                }
-                i = next;
-            }
-        }
+    void remove_component_from_entity (iterator en, component_id c);
 
     bool exists (entity en) const
         { return entities_.count(en); }
@@ -403,6 +228,7 @@ public:
     template <typename type>
     void set (iterator en, component_id c_id, type val)
         {
+            assert(c_id < components_.size());
             const component& c (components_[c_id]);
             elem&  e   (en->second);
             size_t off (offset(e, c_id));
@@ -428,6 +254,8 @@ public:
                 auto ptr (reinterpret_cast<holder<type>*>(&*e.data.begin() + off));
                 new (ptr) holder<type>(std::move(val));
             }
+
+            e.dirty.set(c_id);
         }
 
     template <typename type>
@@ -444,6 +272,97 @@ public:
             return get<type>(e, c_id);
         }
 
+    /** Call a function for every entity that has a given component.
+     *  The callee can then query and change the value of the component through
+     *  a var_ref object, or remove the entity.
+     * @param c     The component to look for.
+     * @param func  The function to call.  This function will be passed an
+     *              iterator to the current entity, and a var_ref corresponding
+     *              to the component value in this entity. */
+    template <typename t>
+    void for_each (component_id c, std::function<void(iterator, var_ref<t>)> func)
+        {
+            std::bitset<64> mask;
+            mask.set(c);
+            for (auto i (entities_.begin()); i != entities_.end(); )
+            {
+                auto next (std::next(i));
+                elem& e (i->second);
+                if ((e.components & mask) == mask)
+                    func(i, var_ref<t>(offset(e, c), e, c));
+
+                i = next;
+            }
+        }
+
+    template <typename t1, typename t2>
+    void for_each (component_id c1, component_id c2,
+                   std::function<void(iterator, var_ref<t1>, var_ref<t2>)> func)
+        {
+            std::bitset<64> mask;
+            mask.set(c1);
+            mask.set(c2);
+            for (auto i (entities_.begin()); i != entities_.end(); )
+            {
+                auto next (std::next(i));
+                elem& e (i->second);
+                if ((e.components & mask) == mask)
+                {
+                    func(i, var_ref<t1>(offset(e, c1), e, c1),
+                            var_ref<t2>(offset(e, c2), e, c2));
+                }
+                i = next;
+            }
+        }
+
+    template <typename t1, typename t2, typename t3>
+    void for_each (component_id c1, component_id c2, component_id c3,
+                   std::function<void(iterator, var_ref<t1>, var_ref<t2>, var_ref<t3>)> func)
+        {
+            std::bitset<64> mask;
+            mask.set(c1);
+            mask.set(c2);
+            mask.set(c3);
+            for (auto i (entities_.begin()); i != entities_.end(); )
+            {
+                auto next (std::next(i));
+                elem& e (i->second);
+                if ((e.components & mask) == mask)
+                {
+                    func(i, var_ref<t1>(offset(e, c1), e, c1),
+                            var_ref<t2>(offset(e, c2), e, c2),
+                            var_ref<t3>(offset(e, c3), e, c3));
+                }
+                i = next;
+            }
+        }
+
+    bool check_dirty (iterator en);
+    bool check_dirty_and_clear (iterator en);
+    bool check_dirty_flag (iterator en, component_id c_id);
+    bool check_dirty_flag_and_clear (iterator en, component_id c_id);
+
+    std::pair<const std::bitset<64>&, const std::vector<char>&>
+    get_raw_data (iterator en)
+        {
+            return std::pair<const std::bitset<64>&, const std::vector<char>&>
+                            (en->second.components, en->second.data);
+        }
+
+    void set_raw_data (iterator en, const std::bitset<64>& components,
+                       const std::vector<char>& data)
+        {
+            en->second.components = components;
+            en->second.data = data;
+        }
+
+    void set_raw_data (iterator en, const std::bitset<64>& components,
+                       std::vector<char>&& data)
+        {
+            en->second.components = components;
+            en->second.data = std::move(data);
+        }
+
 private:
     template <typename type>
     const type& get (const elem& e, component_id c_id) const
@@ -456,32 +375,22 @@ private:
             return ptr->held();
         }
 
-    size_t offset (const elem& e, component_id c) const
-        {
-            assert(c < components_.size());
-            assert((c & cache_mask) < component_offsets_.size());
-
-            size_t result (component_offsets_[((1 << c) - 1) & e.components.to_ulong() & cache_mask]);
-
-            for (component_id search (cache_size); search < c; ++search)
-            {
-                if (e.components[search])
-                    result += components_[search].size();
-            }
-
-            return result;
-        }
+    size_t offset (const elem& e, component_id c) const;
 
 private:
     /** Keeps track of entity IDs to give out. */
     uint32_t                            next_id_;
+
     /** The list of registered components. */
     std::vector<component>              components_;
+
     /** Mapping entity IDs to their data. */
     std::unordered_map<uint32_t, elem>  entities_;
+
     /** A lookup table for the data offsets of components.
      *  The index is the bitmask as used in elem::components. */
     std::vector<size_t>                 component_offsets_;
+
     /** A bitmask to quickly determine whether a certain combination of
      ** components has a flat memory layout or not. */
     std::bitset<64>                     flat_mask_;
