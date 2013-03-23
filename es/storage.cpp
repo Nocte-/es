@@ -14,6 +14,12 @@ storage::storage()
     component_offsets_.push_back(0);
 }
 
+storage::~storage()
+{
+    for (auto i (entities_.begin()); i != entities_.end(); ++i)
+        call_destructors(i);
+}
+
 storage::component_id
 storage::find_component (const std::string& name) const
 {
@@ -117,26 +123,7 @@ storage::delete_entity (entity en)
 void
 storage::delete_entity (iterator f)
 {
-    elem& e (f->second);
-
-    // Quick check if we'll have to call any destructors.
-    if ((e.components & flat_mask_).any())
-    {
-        size_t off (0);
-        for (int search (0); search < 64 && off < e.data.size(); ++search)
-        {
-            if (e.components[search])
-            {
-                if (!components_[search].is_flat())
-                {
-                    auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
-                    ptr->~placeholder();
-                }
-                off += components_[search].size();
-            }
-        }
-    }
-
+    call_destructors(f);
     entities_.erase(f);
 }
 
@@ -158,6 +145,12 @@ storage::remove_component_from_entity (iterator en, component_id c)
     auto o (e.data.begin() + off);
     e.data.erase(o, o + comp_info.size());
     e.components.reset(c);
+}
+
+bool
+storage::entity_has_component (iterator en, component_id c) const
+{
+    return c < components_.size() && en->second.components.test(c);
 }
 
 size_t
@@ -203,6 +196,30 @@ storage::check_dirty_flag_and_clear (iterator en, component_id c_id)
     bool result (check_dirty_flag(en, c_id));
     en->second.dirty.reset(c_id);
     return result;
+}
+
+void
+storage::call_destructors(iterator i) const
+{
+    elem& e (i->second);
+
+    // Quick check if we'll have to call any destructors.
+    if ((e.components & flat_mask_).any())
+    {
+        size_t off (0);
+        for (int search (0); search < 64 && off < e.data.size(); ++search)
+        {
+            if (e.components[search])
+            {
+                if (!components_[search].is_flat())
+                {
+                    auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
+                    ptr->~placeholder();
+                }
+                off += components_[search].size();
+            }
+        }
+    }
 }
 
 } // namespace es
