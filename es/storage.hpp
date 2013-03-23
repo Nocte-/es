@@ -20,6 +20,9 @@
 #include "entity.hpp"
 #include "traits.hpp"
 
+
+#include <iostream>
+
 namespace es {
 
 /** A storage ties entities and components together.
@@ -95,9 +98,9 @@ public:
         type& get()
         {
             if (is_flat<type>::value)
-                return *reinterpret_cast<type*>(&*e_.data.begin() + offset_);
+                return *reinterpret_cast<type*>(p_);
 
-            auto ptr (reinterpret_cast<holder<type>*>(&*e_.data.begin() + offset_));
+            auto ptr (reinterpret_cast<holder<type>*>(p_));
             return ptr->held();
         }
 
@@ -105,9 +108,9 @@ public:
         operator const type& () const
         {
             if (is_flat<type>::value)
-                return *reinterpret_cast<const type*>(&*e_.data.begin() + offset_);
+                return *reinterpret_cast<const type*>(p_);
 
-            auto ptr (reinterpret_cast<const holder<type>*>(&*e_.data.begin() + offset_));
+            auto ptr (reinterpret_cast<const holder<type>*>(p_));
             return ptr->held();
         }
 
@@ -115,11 +118,11 @@ public:
         {
             if (is_flat<type>::value)
             {
-                new (&*e_.data.begin() + offset_) type(std::move(assign));
+                new (p_) type(std::move(assign));
             }
             else
             {
-                auto ptr (reinterpret_cast<holder<type>*>(&*e_.data.begin() + offset_));
+                auto ptr (reinterpret_cast<holder<type>*>(p_));
                 new (ptr) holder<type>(std::move(assign));
             }
             touch();
@@ -144,17 +147,22 @@ public:
 
     protected:
         var_ref (size_t offset, elem& e, component_id c)
-            : offset_(offset), e_(e), component_(c)
-            { }
+            //: p_(&e_.data[0] + offset) // compiler bug in 4.7?
+            : e_(e)
+            , component_(c)
+        {
+            p_ = (&e_.data[0]) + offset;
+        }
 
     private:
-        size_t          offset_;
+        char*           p_;
         elem&           e_;
         component_id    component_;
     };
 
 public:
     storage();
+    ~storage();
 
     template <typename type>
     component_id register_component (std::string name)
@@ -221,6 +229,8 @@ public:
     bool exists (entity en) const
         { return entities_.count(en); }
 
+    bool entity_has_component (iterator en, component_id c) const;
+
     template <typename type>
     void set (entity en, component_id c_id, type val)
         { return set<type>(find(en), c_id, std::move(val)); }
@@ -284,7 +294,7 @@ public:
         {
             std::bitset<64> mask;
             mask.set(c);
-            for (auto i (entities_.begin()); i != entities_.end(); )
+            for (auto i (begin()); i != end(); )
             {
                 auto next (std::next(i));
                 elem& e (i->second);
@@ -302,7 +312,7 @@ public:
             std::bitset<64> mask;
             mask.set(c1);
             mask.set(c2);
-            for (auto i (entities_.begin()); i != entities_.end(); )
+            for (auto i (begin()); i != end(); )
             {
                 auto next (std::next(i));
                 elem& e (i->second);
@@ -323,7 +333,7 @@ public:
             mask.set(c1);
             mask.set(c2);
             mask.set(c3);
-            for (auto i (entities_.begin()); i != entities_.end(); )
+            for (auto i (begin()); i != end(); )
             {
                 auto next (std::next(i));
                 elem& e (i->second);
@@ -363,6 +373,14 @@ public:
             en->second.data = std::move(data);
         }
 
+
+    iterator begin()                { return entities_.begin();  }
+    iterator end()                  { return entities_.end();    }
+    const_iterator begin() const    { return entities_.begin();  }
+    const_iterator end() const      { return entities_.end();    }
+    const_iterator cbegin() const   { return entities_.cbegin(); }
+    const_iterator cend() const     { return entities_.cend();   }
+
 private:
     template <typename type>
     const type& get (const elem& e, component_id c_id) const
@@ -376,6 +394,8 @@ private:
         }
 
     size_t offset (const elem& e, component_id c) const;
+
+    void call_destructors (iterator i) const;
 
 private:
     /** Keeps track of entity IDs to give out. */
