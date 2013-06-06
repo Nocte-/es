@@ -12,5 +12,5 @@ include_directories(..)
 find_package(Boost 1.46 REQUIRED COMPONENTS unit_test_framework)
 
 include_directories(${Boost_INCLUDE_DIRS})
-target_link_libraries(${EXE} es ${Boost_LIBRARIES})
+target_link_libraries(${EXE} es1 ${Boost_LIBRARIES})
 
