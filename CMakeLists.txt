@@ -1,6 +1,6 @@
 project(es)
 cmake_minimum_required(VERSION 2.8.3)
-set(CPACK_PACKAGE_NAME "es")
+set(CPACK_PACKAGE_NAME "libes")
 
 set(VERSION_MAJOR "0")
 set(VERSION_MINOR "1")
@@ -25,14 +25,14 @@ if(MSVC)
     
 else() # Most likely gcc or clang
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-        set(CMAKE_CXX_FLAGS "-std=c++11")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
     elseif ("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "4.7")
-        set(CMAKE_CXX_FLAGS "-std=c++0x")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
     else()
-        set(CMAKE_CXX_FLAGS "-std=c++11")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
     endif()
 
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -pedantic -Wall")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -Wall")
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
     set(CMAKE_CXX_FLAGS_DEBUG   "-g")
     set(CMAKE_LIB_LINKER_FLAGS  "-s")    
@@ -60,18 +60,18 @@ if(BUILD_DOCUMENTATION)
   endif()
 endif()
 
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Fast C++ entity system")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Fast C++ entity system library")
 set(CPACK_PACKAGE_VENDOR "Nocte")
 set(CPACK_PACKAGE_CONTACT "Nocte <nocte@hippie.nu>")
 set(CPACK_SOURCE_IGNORE_FILES "CMakefiles;Makefile;CMakeCache.txt;_CPack_Packages;/.git/;.gitignore;.travis.yml")
+set(CPACK_SOURCE_GENERATOR "TGZ")
 set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}_${VERSION}")
-    
+ 
 if(UNIX)
-    set(CPACK_GENERATOR "TGZ;DEB;RPM")
+    set(CPACK_GENERATOR "DEB")
     add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
     
-    set(CPACK_DEBIAN_PACKAGE_SECTION "Development")
-    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.0), libstdc++6 (>= 4.0)")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "devel")
     add_custom_target(deb dpkg-buildpackage)
     add_dependencies(deb dist)
 

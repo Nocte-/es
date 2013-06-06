@@ -29,5 +29,6 @@ Makefile
 CPackConfig.cmake
 CPackSourceConfig.cmake
 CMakeCache.txt
+CMakeLists.txt.user
 tags
 

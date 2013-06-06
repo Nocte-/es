@@ -1,0 +1,22 @@
+Source: es
+Maintainer: Nocte <nocte@hippie.nu>
+Section: libs
+Priority: optional
+Build-Depends: debhelper (>= 8.0.0), cmake (>= 2.8), cdbs, libboost-dev (>= 1.47)
+Standards-Version: 3.9.4
+Homepage: http://github.com/Nocte-/es
+
+Package: libes-dev
+Section: libdevel
+Architecture: any
+Depends: libes (= ${binary:Version}), ${misc:Depends}
+Description: Entity System library (development files)
+ Entity-Component System in C++11.
+
+Package: libes
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Entity System library
+ Entity-Component System in C++11.
+
