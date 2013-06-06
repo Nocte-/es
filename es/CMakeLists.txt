@@ -6,7 +6,6 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.hpp.in ${CMAKE_CURRENT_SOURCE
 file(GLOB SOURCE_FILES "*.cpp")
 file(GLOB HEADER_FILES "*.hpp")
 
-add_library(${LIBNAME} ${SOURCE_FILES} ${HEADER_FILES})
 set (LIBNAME_S "${LIBNAME}-s")
 add_library(${LIBNAME_S} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 add_library(${LIBNAME}   SHARED ${SOURCE_FILES} ${HEADER_FILES})
