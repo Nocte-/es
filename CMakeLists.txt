@@ -1,11 +1,13 @@
 project(es)
 cmake_minimum_required(VERSION 2.8.3)
-set(CPACK_PACKAGE_NAME "libes")
 
+set(VERSION_SO    "1")
 set(VERSION_MAJOR "0")
 set(VERSION_MINOR "1")
 set(VERSION_PATCH "0")
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+
+set(CPACK_PACKAGE_NAME "libes${VERSION_SO}")
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build (Debug or Release)" FORCE)
