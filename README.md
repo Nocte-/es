@@ -53,6 +53,15 @@ main()
 }
 ```
 
+Binary packages
+---------------
+LibES can be installed from a [PPA](https://launchpad.net/~nocte/+archive/hexahedra/):
+
+    $ add-apt-repository ppa:nocte/hexahedra
+    $ apt-get update
+    $ apt-get install libes1-dev
+
+
 License
 -------
 This library is released under the terms and conditions of the MIT License.
