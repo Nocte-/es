@@ -51,6 +51,14 @@ public:
         , ph_(std::move(ph))
     { }
 
+	component(component&& m)
+		: name_(std::move(m.name_))
+		, size_(m.size_)
+		, ph_(std::move(m.ph_))
+	{
+		m.size_ = 0;
+	}
+
     const std::string&    name() const      { return name_; }
     size_t                size() const      { return size_; }
     bool                  is_flat() const   { return ph_ == nullptr; }
