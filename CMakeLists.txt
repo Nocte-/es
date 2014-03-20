@@ -3,11 +3,12 @@ cmake_minimum_required(VERSION 2.8.3)
 
 set(VERSION_SO    "1")
 set(VERSION_MAJOR "0")
-set(VERSION_MINOR "1")
-set(VERSION_PATCH "1")
+set(VERSION_MINOR "2")
+set(VERSION_PATCH "0")
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
-set(CPACK_PACKAGE_NAME "libes${VERSION_SO}")
+set(CPACK_PACKAGE_NAME "lib${CMAKE_PROJECT_NAME}${VERSION_SO}")
+set(WEBPAGE "http://github.com/Nocte-/es")
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build (Debug or Release)" FORCE)
@@ -67,18 +68,24 @@ set(CPACK_PACKAGE_VENDOR "Nocte")
 set(CPACK_PACKAGE_CONTACT "Nocte <nocte@hippie.nu>")
 set(CPACK_SOURCE_IGNORE_FILES "CMakefiles;Makefile;CMakeCache.txt;_CPack_Packages;/.git/;.gitignore;.travis.yml")
 set(CPACK_SOURCE_GENERATOR "TGZ")
-set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}_${VERSION}")
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${VERSION}")
  
 if(UNIX)
     set(CPACK_GENERATOR "DEB")
     add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
     
+    set(PKGCONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/install/es.pc)
+    configure_file(${PKGCONFIG_FILE}.in ${PKGCONFIG_FILE})
+    install(FILES ${PKGCONFIG_FILE} DESTINATION ${CMAKE_INSTALL_PREFIX}/share/pkgconfig)
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/install/FindES.cmake DESTINATION ${CMAKE_INSTALL_PREFIX}/share/cmake/Modules)
+
     set(CPACK_DEBIAN_PACKAGE_SECTION "devel")
     add_custom_target(deb dpkg-buildpackage)
     add_dependencies(deb dist)
 
 elseif(WIN32)
     set(CPACK_GENERATOR "ZIP")
+
 endif()
 
 include(CPack)

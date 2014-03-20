@@ -33,7 +33,11 @@ storage::find_component (const std::string& name) const
 entity
 storage::new_entity()
 {
-    entities_[next_id_++];
+    auto result (entities_.emplace(next_id_, elem()).first);
+    if (on_new_entity)
+        on_new_entity(result);
+
+    ++next_id_;
     return next_id_ - 1;
 }
 
@@ -43,7 +47,11 @@ storage::make (uint32_t id)
     if (next_id_ <= id)
         next_id_ = id + 1;
 
-    return entities_.insert(entities_.end(), std::make_pair(id, elem()));
+    auto result (entities_.emplace(id, elem()));
+    if (result.second && on_new_entity)
+        on_new_entity(result.first);
+
+    return result.first;
 }
 
 std::pair<entity, entity>
@@ -58,9 +66,9 @@ storage::new_entities (size_t count)
 
 entity
 storage::clone_entity (iterator f)
-{
-    elem& e (f->second);
-    entities_[next_id_++] = e;
+{  
+    auto cloned (entities_.emplace(next_id_, f->second).first);
+    elem& e (cloned->second);
 
     // Quick check if we need to make deep copies
     if ((e.components & flat_mask_).any())
@@ -73,12 +81,16 @@ storage::clone_entity (iterator f)
                 if (!components_[c_id].is_flat())
                 {
                     auto ptr (reinterpret_cast<placeholder*>(&*e.data.begin() + off));
-                    ptr = ptr->clone();
+                    ptr->clone()->move_to(e.data.begin() + off);
                 }
                 off += components_[c_id].size();
             }
         }
     }
+    if (on_new_entity)
+        on_new_entity(cloned);
+
+    ++next_id_;
     return next_id_ - 1;
 }
 
@@ -123,6 +135,9 @@ storage::delete_entity (entity en)
 void
 storage::delete_entity (iterator f)
 {
+    if (on_deleted_entity)
+        on_deleted_entity(f);
+
     call_destructors(f);
     entities_.erase(f);
 }
@@ -145,6 +160,7 @@ storage::remove_component_from_entity (iterator en, component_id c)
     auto o (e.data.begin() + off);
     e.data.erase(o, o + comp_info.size());
     e.components.reset(c);
+    e.dirty = true;
 }
 
 bool
@@ -173,29 +189,108 @@ storage::offset (const elem& e, component_id c) const
 bool
 storage::check_dirty (iterator en)
 {
-    return en->second.dirty.any();
+    return en->second.dirty;
 }
 
 bool
 storage::check_dirty_and_clear (iterator en)
 {
     bool result (check_dirty(en));
-    en->second.dirty.reset();
+    en->second.dirty = false;
     return result;
 }
 
-bool
-storage::check_dirty_flag (iterator en, component_id c_id)
+void
+storage::serialize (const_iterator en, std::vector<char>& buffer) const
 {
-    return en->second.dirty[c_id];
+    auto& e (en->second);
+    buffer.reserve(8 + e.data.size());
+    buffer.resize(8);
+
+    *(reinterpret_cast<uint64_t*>(&buffer[0])) = e.components.to_ullong();
+
+    auto first (e.data.begin());
+    auto last  (first);
+
+    for (size_t i (0); i < components_.size(); ++i)
+    {
+        if (!e.components[i])
+            continue;
+
+        auto& c (components_[i]);
+        if (c.is_flat())
+        {
+            // As long as we have a flat memory layout, just move the
+            // end of the range.
+            std::advance(last, c.size());
+        }
+        else
+        {
+            // If not, write the current range to the buffer.
+            buffer.insert(buffer.end(), first, last);
+            // Then serialize the object using the function the caller
+            // provided.
+            auto ptr (reinterpret_cast<const component::placeholder*>(&*last));
+            ptr->serialize(buffer);
+            // Reset the range.
+            std::advance(last, c.size());
+            first = last;
+        }
+
+        if (last >= e.data.end())
+            break;
+    }
+    // Write the last bit after we're done.
+    assert(last == e.data.end());
+    buffer.insert(buffer.end(), first, e.data.end());
 }
 
-bool
-storage::check_dirty_flag_and_clear (iterator en, component_id c_id)
+void
+storage::deserialize (iterator en, const std::vector<char>& buffer)
 {
-    bool result (check_dirty_flag(en, c_id));
-    en->second.dirty.reset(c_id);
-    return result;
+    auto first (buffer.begin());
+    auto& e (en->second);
+
+    call_destructors(en);
+    e.data.clear();
+    e.components = *(reinterpret_cast<const uint64_t*>(&*first));
+
+    std::advance(first, 8);
+    auto last (first);
+
+    for (size_t i (0); i < components_.size(); ++i)
+    {
+        if (!e.components[i])
+            continue;
+
+        auto& c (components_[i]);
+        if (c.is_flat())
+        {
+            // As long as we have a flat memory layout, just move the
+            // end of the range.
+            std::advance(last, c.size());
+        }
+        else
+        {
+            // If not, write the current range to the entity data.
+            e.data.insert(e.data.end(), first, last);
+            // Create a new object for the component and deserialize the
+            // data using the function the caller provided.
+            auto ptr (c.clone());
+            last = ptr->deserialize(last, buffer.end());
+            first = last;
+            // Move the object to the buffer.
+            auto offset (e.data.size());
+            e.data.resize(offset + c.size());
+            ptr->move_to(e.data.begin() + offset);
+        }
+
+        if (last >= buffer.end())
+            break;
+    }
+    // Write the last bit after we're done.
+    assert(last == buffer.end());
+    e.data.insert(e.data.end(), first, buffer.end());
 }
 
 void

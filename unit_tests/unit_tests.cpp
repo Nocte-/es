@@ -32,6 +32,40 @@ struct is_flat<flat_test>
 
 }
 
+namespace es
+{
+
+template<>
+void serialize<std::string>(const std::string& s, std::vector<char>& buf)
+{
+    uint16_t size (s.size());
+    buf.push_back(size & 0xff);
+    buf.push_back(size >> 8);
+    buf.insert(buf.end(), s.begin(), s.end());
+}
+
+template<>
+std::vector<char>::const_iterator
+deserialize<std::string>(std::string& obj, std::vector<char>::const_iterator first, std::vector<char>::const_iterator last)
+{
+    if (std::distance(first, last) < 2)
+        throw  std::runtime_error("cannot deserialize string: no length field");
+
+    uint16_t size (uint8_t(*first++));
+    size += (uint16_t(uint8_t(*first++)) << 8 );
+
+    if (std::distance(first, last) < size)
+        throw  std::runtime_error("cannot deserialize string: not enough data");
+
+    last = first + size;
+    obj.assign(first, last);
+    return last;
+}
+
+}
+
+//------------------------------------------------------------------------
+
 BOOST_AUTO_TEST_CASE (prerequisites)
 {
     BOOST_CHECK(es::is_flat<vector>::value);
@@ -180,23 +214,79 @@ BOOST_AUTO_TEST_CASE (system_test_1)
     s.set(2, pos, vector{2, 4, 8});
     s.set(3, pos, vector{5, 12, 23});
 
-    s.for_each<int>(health, [](storage::iterator i, storage::var_ref<int> var)
+    s.for_each<int>(health, [](storage::iterator i, int& var)
         {
             var += 3;
+            return true;
         });
 
     BOOST_CHECK_EQUAL(s.get<int>(0, health), 13);
     BOOST_CHECK_EQUAL(s.get<int>(1, health), 23);
 
-    s.for_each<vector>(pos, [](storage::iterator i, storage::var_ref<vector> var)
+    s.for_each<vector>(pos, [](storage::iterator i, vector& var)
         {
-            vector p (var);
-            p.x += 1;
-            var = p;
+            var.x += 1;
+            return true;
         });
 
     BOOST_CHECK_EQUAL(s.get<vector>(1, pos).x, 2);
     BOOST_CHECK_EQUAL(s.get<vector>(2, pos).x, 3);
 }
 
+BOOST_AUTO_TEST_CASE (serialization_test)
+{
+    storage s;
 
+    auto health (s.register_component<int>("health"));
+    auto name   (s.register_component<std::string>("name"));
+    auto pos    (s.register_component<vector>("position"));
+
+    s.new_entities(3);
+
+    s.set(0, health, 10);
+    s.set(1, health, 20);
+    s.set(1, pos, vector{1.f, 2.f, 3.f});
+    s.set(2, health, 30);
+    s.set(2, pos, vector{2.f, 5.f, 9.f});
+    s.set(2, name, std::string("abcdefg"));
+
+    std::vector<char> buf1, buf2, buf3;
+
+    s.serialize(s.find(0), buf1);
+    BOOST_CHECK_EQUAL(buf1.size(), 8 + sizeof(int));
+    //std::vector<char> expected1 {{1, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0}};
+    //BOOST_CHECK_EQUAL(buf1, expected1);
+
+    s.serialize(s.find(1), buf2);
+    BOOST_CHECK_EQUAL(buf2.size(), 8 + sizeof(int) + sizeof(vector));
+
+    s.serialize(s.find(2), buf3);
+    BOOST_CHECK_EQUAL(buf3.size(), 8 + sizeof(int) + sizeof(vector) + 9);
+
+    auto check1 (s.new_entity());
+    auto c1i (s.find(check1));
+    s.deserialize(c1i, buf1);
+    BOOST_CHECK(s.entity_has_component(c1i, health));
+    BOOST_CHECK(!s.entity_has_component(c1i, pos));
+    BOOST_CHECK(!s.entity_has_component(c1i, name));
+    BOOST_CHECK_EQUAL(s.get<int>(c1i, health), 10);
+
+    auto check2 (s.new_entity());
+    auto c2i (s.find(check2));
+    s.deserialize(c2i, buf2);
+    BOOST_CHECK(s.entity_has_component(c2i, health));
+    BOOST_CHECK(s.entity_has_component(c2i, pos));
+    BOOST_CHECK(!s.entity_has_component(c2i, name));
+    BOOST_CHECK_EQUAL(s.get<int>(c2i, health), 20);
+    BOOST_CHECK_EQUAL(s.get<vector>(c2i, pos).x, 1.f);
+
+    auto check3 (s.new_entity());
+    auto c3i (s.find(check3));
+    s.deserialize(c3i, buf3);
+    BOOST_CHECK(s.entity_has_component(c3i, health));
+    BOOST_CHECK(s.entity_has_component(c3i, pos));
+    BOOST_CHECK(s.entity_has_component(c3i, name));
+    BOOST_CHECK_EQUAL(s.get<int>(c3i, health), 30);
+    BOOST_CHECK_EQUAL(s.get<vector>(c3i, pos).z, 9.f);
+    BOOST_CHECK_EQUAL(s.get<std::string>(c3i, name), std::string("abcdefg"));
+}

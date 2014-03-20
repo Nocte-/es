@@ -10,6 +10,7 @@
 #include <bitset>
 #include <cassert>
 #include <cstdint>
+#include <functional>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -48,10 +49,12 @@ class storage
     {
         /** Bitmask to keep track of which components are held in \a data. */
         std::bitset<64>     components;
-        /** Bitmask to keep track of which components have changed. */
-        std::bitset<64>     dirty;
+        /** Set to true if any data has changed. */
+        bool                dirty;
         /** Component data for this entity. */
         std::vector<char>   data;
+
+        elem() : dirty(true) {}
     };
 
     typedef component::placeholder placeholder;
@@ -71,6 +74,18 @@ class storage
 
         placeholder* clone() const { return new holder<t>(held_); }
 
+        void serialize(std::vector<char>& buffer) const
+            { es::serialize(held(), buffer); }
+
+        buffer_t::const_iterator deserialize(buffer_t::const_iterator first, buffer_t::const_iterator last)
+            { return es::deserialize(held(), first, last); }
+
+        void move_to (buffer_t::iterator pos)
+            {
+                auto ptr (reinterpret_cast<holder<t>*>(&*pos));
+                new (ptr) holder<t>(std::move(held_));
+            }
+
     private:
         t held_;
     };
@@ -83,82 +98,10 @@ public:
     typedef stor_impl::iterator         iterator;
     typedef stor_impl::const_iterator   const_iterator;
 
+
 public:
-    /** Variable references are used by systems to access an entity's data.
-     *  It keeps track of the elem::data buffer and the offset inside that
-     *  buffer. */
-    template <typename type>
-    class var_ref
-    {
-        friend class storage;
-
-        void touch() const
-            { e_.dirty.set(component_); }
-
-        type& get()
-        {
-            if (is_flat<type>::value)
-                return *reinterpret_cast<type*>(p_);
-
-            auto ptr (reinterpret_cast<holder<type>*>(p_));
-            return ptr->held();
-        }
-
-    public:
-        operator const type& () const
-        {
-            if (is_flat<type>::value)
-                return *reinterpret_cast<const type*>(p_);
-
-            auto ptr (reinterpret_cast<const holder<type>*>(p_));
-            return ptr->held();
-        }
-
-        var_ref& operator= (type assign)
-        {
-            if (is_flat<type>::value)
-            {
-                new (p_) type(std::move(assign));
-            }
-            else
-            {
-                auto ptr (reinterpret_cast<holder<type>*>(p_));
-                new (ptr) holder<type>(std::move(assign));
-            }
-            touch();
-            return *this;
-        }
-
-        template <typename s>
-        var_ref& operator+= (s val)
-            { get() += val; touch(); return *this; }
-
-        template <typename s>
-        var_ref& operator-= (s val)
-            { get() -= val; touch(); return *this; }
-
-        template <typename s>
-        var_ref& operator*= (s val)
-            { get() *= val; touch(); return *this; }
-
-        template <typename s>
-        var_ref& operator/= (s val)
-            { get() /= val; touch(); return *this; }
-
-    protected:
-        var_ref (size_t offset, elem& e, component_id c)
-            //: p_(&e_.data[0] + offset) // compiler bug in 4.7?
-            : e_(e)
-            , component_(c)
-        {
-            p_ = (&e_.data[0]) + offset;
-        }
-
-    private:
-        char*           p_;
-        elem&           e_;
-        component_id    component_;
-    };
+    std::function<void(iterator)>       on_new_entity;
+    std::function<void(iterator)>       on_deleted_entity;
 
 public:
     storage();
@@ -249,8 +192,6 @@ public:
                     e.data.resize(off + c.size());
                 else
                     e.data.insert(e.data.begin() + off, c.size(), 0);
-
-                e.components.set(c_id);
             }
 
             if (is_flat<type>::value)
@@ -261,11 +202,14 @@ public:
             else
             {
                 assert(e.data.size() >= off + sizeof(holder<type>));
-                auto ptr (reinterpret_cast<holder<type>*>(&*e.data.begin() + off));
+                auto ptr (reinterpret_cast<holder<type>*>(&*e.data.begin() + off));                
+                if (e.components[c_id])
+                    ptr->~placeholder();
+
                 new (ptr) holder<type>(std::move(val));
             }
-
-            e.dirty.set(c_id);
+            e.components.set(c_id);
+            e.dirty = true;
         }
 
     template <typename type>
@@ -282,6 +226,21 @@ public:
             return get<type>(e, c_id);
         }
 
+    template <typename type>
+    type& get (entity en, component_id c_id)
+        { return get<type>(find(en), c_id); }
+
+    template <typename type>
+    type& get (iterator en, component_id c_id)
+        {
+            auto& e (en->second);
+            if (!e.components[c_id])
+                throw std::logic_error("entity does not have component");
+
+            return get<type>(e, c_id);
+        }
+
+
     /** Call a function for every entity that has a given component.
      *  The callee can then query and change the value of the component through
      *  a var_ref object, or remove the entity.
@@ -290,7 +249,7 @@ public:
      *              iterator to the current entity, and a var_ref corresponding
      *              to the component value in this entity. */
     template <typename t>
-    void for_each (component_id c, std::function<void(iterator, var_ref<t>)> func)
+    void for_each (component_id c, std::function<bool(iterator, t&)> func)
         {
             std::bitset<64> mask;
             mask.set(c);
@@ -299,7 +258,7 @@ public:
                 auto next (std::next(i));
                 elem& e (i->second);
                 if ((e.components & mask) == mask)
-                    func(i, var_ref<t>(offset(e, c), e, c));
+                    e.dirty |= func(i, get<t>(e, c));
 
                 i = next;
             }
@@ -307,7 +266,7 @@ public:
 
     template <typename t1, typename t2>
     void for_each (component_id c1, component_id c2,
-                   std::function<void(iterator, var_ref<t1>, var_ref<t2>)> func)
+                   std::function<bool(iterator, t1&, t2&)> func)
         {
             std::bitset<64> mask;
             mask.set(c1);
@@ -317,17 +276,15 @@ public:
                 auto next (std::next(i));
                 elem& e (i->second);
                 if ((e.components & mask) == mask)
-                {
-                    func(i, var_ref<t1>(offset(e, c1), e, c1),
-                            var_ref<t2>(offset(e, c2), e, c2));
-                }
+                    e.dirty |= func(i, get<t1>(e, c1), get<t2>(e, c2));
+
                 i = next;
             }
         }
 
     template <typename t1, typename t2, typename t3>
     void for_each (component_id c1, component_id c2, component_id c3,
-                   std::function<void(iterator, var_ref<t1>, var_ref<t2>, var_ref<t3>)> func)
+                   std::function<bool(iterator, t1&, t2&, t3&)> func)
         {
             std::bitset<64> mask;
             mask.set(c1);
@@ -339,9 +296,9 @@ public:
                 elem& e (i->second);
                 if ((e.components & mask) == mask)
                 {
-                    func(i, var_ref<t1>(offset(e, c1), e, c1),
-                            var_ref<t2>(offset(e, c2), e, c2),
-                            var_ref<t3>(offset(e, c3), e, c3));
+                    e.dirty |= func(i, get<t1>(e, c1),
+                                       get<t2>(e, c2),
+                                       get<t3>(e, c3));
                 }
                 i = next;
             }
@@ -349,30 +306,9 @@ public:
 
     bool check_dirty (iterator en);
     bool check_dirty_and_clear (iterator en);
-    bool check_dirty_flag (iterator en, component_id c_id);
-    bool check_dirty_flag_and_clear (iterator en, component_id c_id);
 
-    std::pair<const std::bitset<64>&, const std::vector<char>&>
-    get_raw_data (iterator en)
-        {
-            return std::pair<const std::bitset<64>&, const std::vector<char>&>
-                            (en->second.components, en->second.data);
-        }
-
-    void set_raw_data (iterator en, const std::bitset<64>& components,
-                       const std::vector<char>& data)
-        {
-            en->second.components = components;
-            en->second.data = data;
-        }
-
-    void set_raw_data (iterator en, const std::bitset<64>& components,
-                       std::vector<char>&& data)
-        {
-            en->second.components = components;
-            en->second.data = std::move(data);
-        }
-
+    void serialize (const_iterator en, std::vector<char>& buffer) const;
+    void deserialize (iterator en, const std::vector<char>& buffer);
 
     iterator begin()                { return entities_.begin();  }
     iterator end()                  { return entities_.end();    }
@@ -385,12 +321,23 @@ private:
     template <typename type>
     const type& get (const elem& e, component_id c_id) const
         {
-            size_t off (offset(e, c_id));
+            auto data_ptr (&*e.data.begin() + offset(e, c_id));
             if (is_flat<type>::value)
-                return *reinterpret_cast<const type*>(&*e.data.begin() + off);
+                return *reinterpret_cast<const type*>(data_ptr);
 
-            auto ptr (reinterpret_cast<const holder<type>*>(&*e.data.begin() + off));
-            return ptr->held();
+            auto obj_ptr (reinterpret_cast<const holder<type>*>(data_ptr));
+            return obj_ptr->held();
+        }
+
+    template <typename type>
+    type& get (elem& e, component_id c_id)
+        {
+            auto data_ptr (&*e.data.begin() + offset(e, c_id));
+            if (is_flat<type>::value)
+                return *reinterpret_cast<type*>(data_ptr);
+
+            auto obj_ptr (reinterpret_cast<holder<type>*>(data_ptr));
+            return obj_ptr->held();
         }
 
     size_t offset (const elem& e, component_id c) const;

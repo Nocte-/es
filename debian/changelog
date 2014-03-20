@@ -1,3 +1,9 @@
+libes (0.2.0) raring; urgency=low
+
+  * Added functions for (de)serialization of entities
+
+ -- Nocte <nocte@hippie.nu>  Tue, 12 Nov 2013 16:20:07 +0200
+
 libes (0.1.1) raring; urgency=low
 
   * Small fixes for Debian packaging.
