@@ -46,7 +46,7 @@ main()
     std::cout << "Player: " << s.get<std::string>(player, name) << std::endl;
 
     // Build a "System" that moves everything with a position diagonally.
-    s.for_each<vec>(pos, [](storage::iterator, storage::var_ref<vec> p)
+    s.for_each<vec>(pos, [](storage::iterator, vec& p)
     {
         p += vec(1, 1, 1);
     });
