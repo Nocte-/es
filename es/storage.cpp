@@ -33,7 +33,7 @@ storage::find_component (const std::string& name) const
 entity
 storage::new_entity()
 {
-    auto result (entities_.emplace(next_id_, elem()).first);
+    auto result (entities_.insert(std::make_pair(next_id_, elem())).first);
     if (on_new_entity)
         on_new_entity(result);
 
@@ -47,7 +47,7 @@ storage::make (uint32_t id)
     if (next_id_ <= id)
         next_id_ = id + 1;
 
-    auto result (entities_.emplace(id, elem()));
+    auto result (entities_.insert(std::make_pair(next_id_, elem())));
     if (result.second && on_new_entity)
         on_new_entity(result.first);
 
@@ -67,7 +67,7 @@ storage::new_entities (size_t count)
 entity
 storage::clone_entity (iterator f)
 {  
-    auto cloned (entities_.emplace(next_id_, f->second).first);
+    auto cloned (entities_.insert(std::make_pair(next_id_, f->second)).first);
     elem& e (cloned->second);
 
     // Quick check if we need to make deep copies
