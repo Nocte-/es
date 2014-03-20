@@ -2,7 +2,7 @@
 /// \file   es/component.hpp
 /// \brief  A component is a data type that can be assigned to entities
 //
-// Copyright 2013, nocte@hippie.nu            Released under the MIT License.
+// Copyright 2013-2014, nocte@hippie.nu       Released under the MIT License.
 //---------------------------------------------------------------------------
 #pragma once
 
@@ -67,6 +67,26 @@ public:
         , size_ (size)
         , ph_   (std::move(ph))
     { }
+
+	component(component&& m)
+		: name_(std::move(m.name_))
+		, size_(m.size_)
+		, ph_(std::move(m.ph_))
+	{
+		m.size_ = 0;
+	}
+
+	component& operator=(component&& m)
+	{
+		if (&m != this)
+		{
+			name_ = std::move(m.name_);
+			size_ = m.size_;
+			ph_ = std::move(m.ph_);
+			m.size_ = 0;
+		}
+		return *this;
+	}
 
     const std::string&  name() const    { return name_; }
     size_t              size() const    { return size_; }

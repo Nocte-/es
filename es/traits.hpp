@@ -20,7 +20,7 @@ namespace es {
 template <typename t>
 struct is_flat
 {
-    static constexpr bool value = std::is_trivial<t>::value;
+    static const bool value = std::is_trivial<t>::value;
 };
 
 } // namespace es

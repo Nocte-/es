@@ -41,8 +41,8 @@ class storage
 {
     // It is assumed the first few components will be accessed the
     // most often.  We keep a cache of the first 12.
-    static constexpr uint32_t cache_size = 12;
-    static constexpr uint32_t cache_mask = (1 << cache_size) - 1;
+    static const uint32_t cache_size = 12;
+    static const uint32_t cache_mask = (1 << cache_size) - 1;
 
     /** This data gets associated with every entity. */
     struct elem
@@ -170,7 +170,7 @@ public:
     void remove_component_from_entity (iterator en, component_id c);
 
     bool exists (entity en) const
-        { return entities_.count(en); }
+        { return entities_.count(en) != 0; }
 
     bool entity_has_component (iterator en, component_id c) const;
 
