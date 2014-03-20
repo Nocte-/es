@@ -31,4 +31,5 @@ CPackSourceConfig.cmake
 CMakeCache.txt
 CMakeLists.txt.user
 tags
+*.pc
 
