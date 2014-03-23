@@ -1,3 +1,9 @@
+libes (0.2.2) raring; urgency=low
+
+  * Bugfix release
+
+ -- Nocte <nocte@hippie.nu>  Sun, 23 Mar 2014 14:23:05 +0100
+
 libes (0.2.1) raring; urgency=low
 
   * Bump version for Launchpad.net

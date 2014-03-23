@@ -102,6 +102,21 @@ BOOST_AUTO_TEST_CASE (basic_test)
     BOOST_CHECK_EQUAL(s.get<std::string>(deity, name), "FSM");
 }
 
+BOOST_AUTO_TEST_CASE (make_test)
+{
+    storage s;
+
+    BOOST_CHECK_EQUAL(s.size(), 0);
+    s.make(0);
+    BOOST_CHECK_EQUAL(s.size(), 1);
+    s.make(2);
+    BOOST_CHECK_EQUAL(s.size(), 2);
+    s.make(2);
+    BOOST_CHECK_EQUAL(s.size(), 2);
+    s.make(1);
+    BOOST_CHECK_EQUAL(s.size(), 3);
+}
+
 BOOST_AUTO_TEST_CASE (pod_test)
 {
     storage s;

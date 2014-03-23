@@ -47,7 +47,7 @@ storage::make (uint32_t id)
     if (next_id_ <= id)
         next_id_ = id + 1;
 
-    auto result (entities_.insert(std::make_pair(next_id_, elem())));
+    auto result (entities_.insert(std::make_pair(id, elem())));
     if (result.second && on_new_entity)
         on_new_entity(result.first);
 
