@@ -1,3 +1,9 @@
+libes (0.2.3) raring; urgency=low
+
+  * Fix memory leak in deserialization
+
+ -- Nocte <nocte@hippie.nu>  Sun, 23 Mar 2014 23:18:36 +0100
+
 libes (0.2.2) raring; urgency=low
 
   * Bugfix release

@@ -283,6 +283,7 @@ storage::deserialize (iterator en, const std::vector<char>& buffer)
             auto offset (e.data.size());
             e.data.resize(offset + c.size());
             ptr->move_to(e.data.begin() + offset);
+            delete ptr;
         }
 
         if (last >= buffer.end())
