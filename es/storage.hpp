@@ -204,7 +204,7 @@ public:
                 assert(e.data.size() >= off + sizeof(holder<type>));
                 auto ptr (reinterpret_cast<holder<type>*>(&*e.data.begin() + off));                
                 if (e.components[c_id])
-                    ptr->~placeholder();
+                    ptr->~holder();
 
                 new (ptr) holder<type>(std::move(val));
             }

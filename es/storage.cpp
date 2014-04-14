@@ -276,17 +276,19 @@ storage::deserialize (iterator en, const std::vector<char>& buffer)
             e.data.insert(e.data.end(), first, last);
             // Create a new object for the component and deserialize the
             // data using the function the caller provided.
-            auto ptr (c.clone());
+            std::unique_ptr<component::placeholder> ptr (c.clone());
             last = ptr->deserialize(last, buffer.end());
             first = last;
             // Move the object to the buffer.
             auto offset (e.data.size());
             e.data.resize(offset + c.size());
             ptr->move_to(e.data.begin() + offset);
-            delete ptr;
         }
 
-        if (last >= buffer.end())
+        if (last > buffer.end())
+            throw std::runtime_error("es::deserialize: missing data");
+
+        if (last == buffer.end())
             break;
     }
     // Write the last bit after we're done.
