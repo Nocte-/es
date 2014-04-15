@@ -10,6 +10,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <typeindex>
 #include <typeinfo>
 
 namespace es {
@@ -38,19 +39,23 @@ protected:
         virtual ~placeholder() { }
 
         /** Return a copy of the underlying object. */
-        virtual placeholder* clone() const = 0;
+        virtual placeholder*
+        clone() const = 0;
 
         /** Serialize the object to a buffer. */
-        virtual void serialize(buffer_t& buffer) const = 0;
+        virtual void
+        serialize(buffer_t& buffer) const = 0;
 
         /** Deserialize from a buffer.
          * The function is passed a range in a buffer.  It should return
          * the end point up until which it has parsed. */
         virtual buffer_t::const_iterator
-                     deserialize(buffer_t::const_iterator first,
-                                 buffer_t::const_iterator last) = 0;
+        deserialize(buffer_t::const_iterator first,
+                    buffer_t::const_iterator last) = 0;
 
-        virtual void move_to (buffer_t::iterator pos) = 0;
+        /** Move this placeholder to a different location in memory. */
+        virtual void
+        move_to (buffer_t::iterator pos) = 0;
     };
 
 public:
@@ -59,34 +64,39 @@ public:
      * @param size     Size of an instance of this component in bytes.  For
      *                 components that need a placeholder, this should be
      *                 sizeof(placeholder).
+     * @param type     The typeid of the component's data.
      * @param ph       Simple types should pass a nullptr here.  Complex types
      *                 should pass a pointer to a placeholder instance of
      *                 the correct type. */
-    component(std::string name, size_t size, std::unique_ptr<placeholder> ph)
-        : name_ (std::move(name))
-        , size_ (size)
-        , ph_   (std::move(ph))
+    component(std::string name, size_t size, const std::type_info& type,
+              std::unique_ptr<placeholder> ph)
+        : name_      (std::move(name))
+        , size_      (size)
+        , type_info_ (type)
+        , ph_        (std::move(ph))
     { }
 
-	component(component&& m)
-		: name_(std::move(m.name_))
-		, size_(m.size_)
-		, ph_(std::move(m.ph_))
-	{
-		m.size_ = 0;
-	}
+    component(component&& m)
+        : name_(std::move(m.name_))
+        , size_(m.size_)
+        , type_info_(m.type_info_)
+        , ph_(std::move(m.ph_))
+    {
+        m.size_ = 0;
+    }
 
-	component& operator=(component&& m)
-	{
-		if (&m != this)
-		{
-			name_ = std::move(m.name_);
-			size_ = m.size_;
-			ph_ = std::move(m.ph_);
-			m.size_ = 0;
-		}
-		return *this;
-	}
+    component& operator=(component&& m)
+    {
+        if (&m != this)
+        {
+            name_ = std::move(m.name_);
+            size_ = m.size_;
+            type_info_ = m.type_info_;
+            ph_ = std::move(m.ph_);
+            m.size_ = 0;
+        }
+        return *this;
+    }
 
     const std::string&  name() const    { return name_; }
     size_t              size() const    { return size_; }
@@ -98,12 +108,21 @@ public:
     bool operator!= (const std::string& compare) const
         { return name_ != compare; }
 
+    std::type_index get_type_index() const
+        { return type_info_; }
+
+    template<typename t>
+    bool is_of_type() const
+        { return std::type_index(typeid(t)) == type_info_; }
+
 protected:
-    placeholder*          clone() const   { return ph_->clone(); }
+    placeholder* clone() const
+        { return ph_->clone(); }
 
 private:
     std::string name_;
     size_t      size_;
+    std::type_index  type_info_;
     std::unique_ptr<placeholder> ph_;
 };
 
