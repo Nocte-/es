@@ -1,3 +1,9 @@
+libes (0.2.5) raring; urgency=low
+
+  * Bugfix: passing a reference type to set() now compiles properly
+
+ -- Nocte <nocte@hippie.nu>  Tue, 15 Apr 2014 21:01:30 +0200
+
 libes (0.2.4) raring; urgency=low
 
   * Debug assertion to typecheck components against the provided template type
