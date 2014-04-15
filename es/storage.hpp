@@ -2,7 +2,7 @@
 /// \file   es/storage.hpp
 /// \brief  The entity/component data store
 //
-// Copyright 2013, nocte@hippie.nu            Released under the MIT License.
+// Copyright 2013-2014, nocte@hippie.nu       Released under the MIT License.
 //---------------------------------------------------------------------------
 #pragma once
 
@@ -13,6 +13,7 @@
 #include <functional>
 #include <stdexcept>
 #include <string>
+#include <typeinfo>
 #include <type_traits>
 #include <vector>
 #include <unordered_map>
@@ -20,9 +21,6 @@
 #include "component.hpp"
 #include "entity.hpp"
 #include "traits.hpp"
-
-
-#include <iostream>
 
 namespace es {
 
@@ -72,7 +70,8 @@ class storage
         const t& held() const { return held_; }
         t&       held()       { return held_; }
 
-        placeholder* clone() const { return new holder<t>(held_); }
+        placeholder* clone() const
+            { return new holder<t>(held_); }
 
         void serialize(std::vector<char>& buffer) const
             { es::serialize(held(), buffer); }
@@ -83,7 +82,8 @@ class storage
         void move_to (buffer_t::iterator pos)
             {
                 auto ptr (reinterpret_cast<holder<t>*>(&*pos));
-                new (ptr) holder<t>(std::move(held_));
+                auto tmp (new (ptr) holder<t>(std::move(held_)));
+                assert(tmp == ptr); (void)tmp;
             }
 
     private:
@@ -108,20 +108,20 @@ public:
     ~storage();
 
     template <typename type>
-    component_id register_component (std::string name)
+    component_id register_component (std::string&& name)
         {
             size_t size;
 
             if (is_flat<type>::value)
             {
                 size = sizeof(type);
-                components_.emplace_back(std::move(name), size, nullptr);
+                components_.emplace_back(std::move(name), size, typeid(type), nullptr);
             }
             else
             {
                 flat_mask_.set(components_.size());
                 size = sizeof(holder<type>);
-                components_.emplace_back(std::move(name), size,
+                components_.emplace_back(std::move(name), size, typeid(type),
                                          std::unique_ptr<placeholder>(new holder<type>()));
             }
 
@@ -175,14 +175,15 @@ public:
     bool entity_has_component (iterator en, component_id c) const;
 
     template <typename type>
-    void set (entity en, component_id c_id, type val)
-        { return set<type>(find(en), c_id, std::move(val)); }
+    void set (entity en, component_id c_id, type&& val)
+        { set<type>(find(en), c_id, std::forward<type>(val)); }
 
     template <typename type>
-    void set (iterator en, component_id c_id, type val)
+    void set (iterator en, component_id c_id, type&& val)
         {
             assert(c_id < components_.size());
             const component& c (components_[c_id]);
+            assert(c.is_of_type<type>());
             elem&  e   (en->second);
             size_t off (offset(e, c_id));
 
@@ -197,16 +198,18 @@ public:
             if (is_flat<type>::value)
             {
                 assert(e.data.size() >= off + sizeof(type));
-                new (&*e.data.begin() + off) type(std::move(val));
+                new (&*e.data.begin() + off) type (val);
             }
             else
             {
                 assert(e.data.size() >= off + sizeof(holder<type>));
-                auto ptr (reinterpret_cast<holder<type>*>(&*e.data.begin() + off));                
+
+                auto ptr (reinterpret_cast<holder<type>*>(&*e.data.begin() + off));
                 if (e.components[c_id])
                     ptr->~holder();
 
-                new (ptr) holder<type>(std::move(val));
+                auto tmp (new (ptr) holder<type>(std::move(val)));
+                assert(tmp == ptr); (void)tmp;
             }
             e.components.set(c_id);
             e.dirty = true;
@@ -321,6 +324,7 @@ private:
     template <typename type>
     const type& get (const elem& e, component_id c_id) const
         {
+            assert(components_[c_id].is_of_type<type>());
             auto data_ptr (&*e.data.begin() + offset(e, c_id));
             if (is_flat<type>::value)
                 return *reinterpret_cast<const type*>(data_ptr);
@@ -332,6 +336,7 @@ private:
     template <typename type>
     type& get (elem& e, component_id c_id)
         {
+            assert(components_[c_id].is_of_type<type>());
             auto data_ptr (&*e.data.begin() + offset(e, c_id));
             if (is_flat<type>::value)
                 return *reinterpret_cast<type*>(data_ptr);
