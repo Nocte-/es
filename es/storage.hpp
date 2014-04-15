@@ -174,13 +174,15 @@ public:
 
     bool entity_has_component (iterator en, component_id c) const;
 
-    template <typename type>
-    void set (entity en, component_id c_id, type&& val)
-        { set<type>(find(en), c_id, std::forward<type>(val)); }
+    template <typename value_type>
+    void set (entity en, component_id c_id, value_type&& val)
+        { set<value_type>(find(en), c_id, std::forward<value_type>(val)); }
 
-    template <typename type>
-    void set (iterator en, component_id c_id, type&& val)
+    template <typename value_type>
+    void set (iterator en, component_id c_id, value_type&& val)
         {
+            typedef typename std::remove_reference<value_type>::type  type;
+
             assert(c_id < components_.size());
             const component& c (components_[c_id]);
             assert(c.is_of_type<type>());
@@ -214,6 +216,7 @@ public:
             e.components.set(c_id);
             e.dirty = true;
         }
+
 
     template <typename type>
     const type& get (entity en, component_id c_id) const
