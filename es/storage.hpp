@@ -37,11 +37,6 @@ namespace es {
  */
 class storage
 {
-    // It is assumed the first few components will be accessed the
-    // most often.  We keep a cache of the first 12.
-    static const uint32_t cache_size = 12;
-    static const uint32_t cache_mask = (1 << cache_size) - 1;
-
     /** This data gets associated with every entity. */
     struct elem
     {
@@ -125,15 +120,14 @@ public:
                                          std::unique_ptr<placeholder>(new holder<type>()));
             }
 
-            if (components_.size() < cache_size)
-            {
-                size_t i (component_offsets_.size());
-                component_offsets_.resize(i * 2);
-                for (size_t j (i); j != i * 2; ++j)
-                    component_offsets_[j] = component_offsets_[j-i] + size;
-            }
+            component_id index (components_.size() - 1);
+            size_t       block ((index & 0x38) << 5);
+            size_t       i     (1 << (index & 0x07));
 
-            return components_.size() - 1;
+            for (size_t j (block + i); j != block + i * 2; ++j)
+                component_offsets_[j] = component_offsets_[j-i] + size;
+
+            return index;
         }
 
     component_id find_component (const std::string& name) const;
@@ -362,8 +356,7 @@ private:
     /** Mapping entity IDs to their data. */
     std::unordered_map<uint32_t, elem>  entities_;
 
-    /** A lookup table for the data offsets of components.
-     *  The index is the bitmask as used in elem::components. */
+    /** A lookup table for the data offsets of components. */
     std::vector<size_t>                 component_offsets_;
 
     /** A bitmask to quickly determine whether a certain combination of

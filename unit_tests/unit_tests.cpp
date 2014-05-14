@@ -130,6 +130,45 @@ BOOST_AUTO_TEST_CASE (pod_test)
     BOOST_CHECK(!s.components()[name].is_flat());
 }
 
+BOOST_AUTO_TEST_CASE (many_test)
+{
+    storage s;
+
+    std::vector<storage::component_id> ci;
+    for (int i (0); i < 32; ++i)
+    {
+        ci.push_back(s.register_component<uint16_t>(std::to_string(i*2)));
+        ci.push_back(s.register_component<uint32_t>(std::to_string(i*2 + 1)));
+    }
+
+    entity e1 (s.new_entity());
+    entity e2 (s.new_entity());
+    entity e3 (s.new_entity());
+    entity e4 (s.new_entity());
+
+    s.set(e1, ci[0], uint16_t(1));
+    s.set(e1, ci[63], uint32_t(2));
+
+    s.set(e2, ci[33], uint32_t(3));
+
+    s.set(e3, ci[60], uint16_t(4));
+    s.set(e3, ci[1], uint32_t(5));
+
+    for (int j (0); j < 32; ++j)
+    {
+        s.set(e4, ci[j*2  ], uint16_t(10+j*2));
+        s.set(e4, ci[j*2+1], uint32_t(11+j*2));
+    }
+
+    BOOST_CHECK_EQUAL(s.get<uint16_t>(e1, ci[ 0]), 1);
+    BOOST_CHECK_EQUAL(s.get<uint32_t>(e1, ci[63]), 2);
+    BOOST_CHECK_EQUAL(s.get<uint32_t>(e2, ci[33]), 3);
+    BOOST_CHECK_EQUAL(s.get<uint16_t>(e3, ci[60]), 4);
+    BOOST_CHECK_EQUAL(s.get<uint32_t>(e3, ci[ 1]), 5);
+    BOOST_CHECK_EQUAL(s.get<uint16_t>(e4, ci[60]), 70);
+    BOOST_CHECK_EQUAL(s.get<uint32_t>(e4, ci[51]), 61);
+}
+
 BOOST_AUTO_TEST_CASE (delete_test)
 {
     storage s;

@@ -1,17 +1,18 @@
 //---------------------------------------------------------------------------
-/// \file   es/storage.hpp
-/// \brief  The entity/component data store
+// es/storage.cpp
 //
-// Copyright 2013, nocte@hippie.nu            Released under the MIT License.
+// Copyright 2013-2014, nocte@hippie.nu       Released under the MIT License.
 //---------------------------------------------------------------------------
+
 #include "storage.hpp"
 
 namespace es {
 
 storage::storage()
     : next_id_(0)
+    , component_offsets_(8 * 256)
 {
-    component_offsets_.push_back(0);
+    std::fill(component_offsets_.begin(), component_offsets_.end(), 0);
 }
 
 storage::~storage()
@@ -173,14 +174,13 @@ size_t
 storage::offset (const elem& e, component_id c) const
 {
     assert(c < components_.size());
-    assert((c & cache_mask) < component_offsets_.size());
 
-    size_t result (component_offsets_[((1 << c) - 1) & e.components.to_ulong() & cache_mask]);
-
-    for (component_id search (cache_size); search < c; ++search)
+    auto mask (((uint64_t(1) << c) - 1) & e.components.to_ullong());
+    size_t result (0);
+    for (int i (0); mask != 0 && i < 8; ++i)
     {
-        if (e.components[search])
-            result += components_[search].size();
+        result += component_offsets_[(i << 8) + (mask & 0xff)];
+        mask >>= 8;
     }
 
     return result;
