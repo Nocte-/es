@@ -42,8 +42,8 @@ class storage
     {
         /** Bitmask to keep track of which components are held in \a data. */
         std::bitset<64>     components;
-        /** Set to true if any data has changed. */
-        bool                dirty;
+        /** Track what aspects of an entity have changed. */
+        std::bitset<64>     dirty;
         /** Component data for this entity. */
         std::vector<char>   data;
 
@@ -206,7 +206,7 @@ public:
                 assert(tmp == ptr); (void)tmp;
             }
             e.components.set(c_id);
-            e.dirty = true;
+            e.dirty.set(c_id);
         }
 
 
@@ -247,7 +247,7 @@ public:
      *              iterator to the current entity, and a var_ref corresponding
      *              to the component value in this entity. */
     template <typename t>
-    void for_each (component_id c, std::function<bool(iterator, t&)> func)
+    void for_each (component_id c, std::function<uint64_t(iterator, t&)> func)
         {
             std::bitset<64> mask;
             mask.set(c);
@@ -256,15 +256,16 @@ public:
                 auto next (std::next(i));
                 elem& e (i->second);
                 if ((e.components & mask) == mask)
-                    e.dirty |= func(i, get<t>(e, c));
-
+                {
+                    e.dirty |= (func(i, get<t>(e, c)) & mask.to_ullong());
+                }
                 i = next;
             }
         }
 
     template <typename t1, typename t2>
     void for_each (component_id c1, component_id c2,
-                   std::function<bool(iterator, t1&, t2&)> func)
+                   std::function<uint64_t(iterator, t1&, t2&)> func)
         {
             std::bitset<64> mask;
             mask.set(c1);
@@ -274,7 +275,7 @@ public:
                 auto next (std::next(i));
                 elem& e (i->second);
                 if ((e.components & mask) == mask)
-                    e.dirty |= func(i, get<t1>(e, c1), get<t2>(e, c2));
+                    e.dirty |= (func(i, get<t1>(e, c1), get<t2>(e, c2)) & mask.to_ullong());
 
                 i = next;
             }
@@ -282,7 +283,7 @@ public:
 
     template <typename t1, typename t2, typename t3>
     void for_each (component_id c1, component_id c2, component_id c3,
-                   std::function<bool(iterator, t1&, t2&, t3&)> func)
+                   std::function<uint64_t(iterator, t1&, t2&, t3&)> func)
         {
             std::bitset<64> mask;
             mask.set(c1);
@@ -294,9 +295,9 @@ public:
                 elem& e (i->second);
                 if ((e.components & mask) == mask)
                 {
-                    e.dirty |= func(i, get<t1>(e, c1),
-                                       get<t2>(e, c2),
-                                       get<t3>(e, c3));
+                    e.dirty |= (func(i, get<t1>(e, c1),
+                                        get<t2>(e, c2),
+                                        get<t3>(e, c3)) & mask.to_ullong());
                 }
                 i = next;
             }
@@ -304,6 +305,9 @@ public:
 
     bool check_dirty (iterator en);
     bool check_dirty_and_clear (iterator en);
+
+    bool check_dirty (iterator en, component_id c);
+    bool check_dirty_and_clear (iterator en, component_id c);
 
     void serialize (const_iterator en, std::vector<char>& buffer) const;
     void deserialize (iterator en, const std::vector<char>& buffer);

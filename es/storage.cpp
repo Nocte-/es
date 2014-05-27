@@ -189,14 +189,28 @@ storage::offset (const elem& e, component_id c) const
 bool
 storage::check_dirty (iterator en)
 {
-    return en->second.dirty;
+    return en->second.dirty.any();
 }
 
 bool
 storage::check_dirty_and_clear (iterator en)
 {
     bool result (check_dirty(en));
-    en->second.dirty = false;
+    en->second.dirty.reset();
+    return result;
+}
+
+bool
+storage::check_dirty (iterator en, component_id c)
+{
+    return en->second.dirty[c];
+}
+
+bool
+storage::check_dirty_and_clear (iterator en, component_id c)
+{
+    bool result (check_dirty(en, c));
+    en->second.dirty.reset(c);
     return result;
 }
 

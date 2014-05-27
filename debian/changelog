@@ -1,3 +1,9 @@
+libes (0.2.6) raring; urgency=low
+
+  * Change dirty flag to a bitmask
+
+ -- Nocte <nocte@hippie.nu>  Tue, 27 May 2014 09:29:04 +0200
+
 libes (0.2.5) raring; urgency=low
 
   * Bugfix: passing a reference type to set() now compiles properly
