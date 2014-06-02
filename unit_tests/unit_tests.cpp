@@ -22,18 +22,14 @@ struct flat_test : public vector
     float a, b;
 };
 
-namespace es {
+namespace es
+{
 
 template<>
 struct is_flat<flat_test>
 {
     static constexpr bool value = true;
 };
-
-}
-
-namespace es
-{
 
 template<>
 void serialize<std::string>(const std::string& s, std::vector<char>& buf)
@@ -62,7 +58,7 @@ deserialize<std::string>(std::string& obj, std::vector<char>::const_iterator fir
     return last;
 }
 
-}
+} // namespace es
 
 //------------------------------------------------------------------------
 
@@ -200,7 +196,7 @@ BOOST_AUTO_TEST_CASE (shuffle_test)
     BOOST_CHECK_EQUAL(s.size(), 0);
 }
 
-/* Temporarily disabled this test; figure out how to deal with 
+/* Temporarily disabled this test; figure out how to deal with
  * reference types properly first.
 
 

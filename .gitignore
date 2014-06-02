@@ -30,6 +30,10 @@ CPackConfig.cmake
 CPackSourceConfig.cmake
 CMakeCache.txt
 CMakeLists.txt.user
+CMakeLists.txt.user.*
 tags
 *.pc
+manifest.json
+es.json
+.excludes
 

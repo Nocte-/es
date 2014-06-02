@@ -2,7 +2,7 @@
 /// \file   es/component.hpp
 /// \brief  A component is a data type that can be assigned to entities
 //
-// Copyright 2013-2014, nocte@hippie.nu       Released under the MIT License.
+// Copyright 2014, nocte@hippie.nu            Released under the MIT License.
 //---------------------------------------------------------------------------
 #pragma once
 
@@ -13,8 +13,8 @@
 #include <typeindex>
 #include <typeinfo>
 
-namespace es {
-
+namespace es
+{
 class storage;
 
 /** A component is a data type that can be assigned to entities.
@@ -34,17 +34,15 @@ protected:
     class placeholder
     {
     public:
-        typedef std::vector<char>   buffer_t;
+        typedef std::vector<char> buffer_t;
 
-        virtual ~placeholder() { }
+        virtual ~placeholder() {}
 
         /** Return a copy of the underlying object. */
-        virtual placeholder*
-        clone() const = 0;
+        virtual placeholder* clone() const = 0;
 
         /** Serialize the object to a buffer. */
-        virtual void
-        serialize(buffer_t& buffer) const = 0;
+        virtual void serialize(buffer_t& buffer) const = 0;
 
         /** Deserialize from a buffer.
          * The function is passed a range in a buffer.  It should return
@@ -54,8 +52,7 @@ protected:
                     buffer_t::const_iterator last) = 0;
 
         /** Move this placeholder to a different location in memory. */
-        virtual void
-        move_to (buffer_t::iterator pos) = 0;
+        virtual void move_to(buffer_t::iterator pos) = 0;
     };
 
 public:
@@ -70,11 +67,12 @@ public:
      *                 the correct type. */
     component(std::string name, size_t size, const std::type_info& type,
               std::unique_ptr<placeholder> ph)
-        : name_      (std::move(name))
-        , size_      (size)
-        , type_info_ (type)
-        , ph_        (std::move(ph))
-    { }
+        : name_(std::move(name))
+        , size_(size)
+        , type_info_(type)
+        , ph_(std::move(ph))
+    {
+    }
 
     component(component&& m)
         : name_(std::move(m.name_))
@@ -87,8 +85,7 @@ public:
 
     component& operator=(component&& m)
     {
-        if (&m != this)
-        {
+        if (&m != this) {
             name_ = std::move(m.name_);
             size_ = m.size_;
             type_info_ = m.type_info_;
@@ -98,31 +95,37 @@ public:
         return *this;
     }
 
-    const std::string&  name() const    { return name_; }
-    size_t              size() const    { return size_; }
-    bool                is_flat() const { return ph_ == nullptr; }
+    const std::string& name() const { return name_; }
 
-    bool operator== (const std::string& compare) const
-        { return name_ == compare; }
+    size_t size() const { return size_; }
 
-    bool operator!= (const std::string& compare) const
-        { return name_ != compare; }
+    bool is_flat() const { return ph_ == nullptr; }
 
-    std::type_index get_type_index() const
-        { return type_info_; }
+    bool operator==(const std::string& compare) const
+    {
+        return name_ == compare;
+    }
 
-    template<typename t>
+    bool operator!=(const std::string& compare) const
+    {
+        return name_ != compare;
+    }
+
+    std::type_index get_type_index() const { return type_info_; }
+
+    template <typename t>
     bool is_of_type() const
-        { return std::type_index(typeid(t)) == type_info_; }
+    {
+        return std::type_index(typeid(t)) == type_info_;
+    }
 
 protected:
-    placeholder* clone() const
-        { return ph_->clone(); }
+    placeholder* clone() const { return ph_->clone(); }
 
 private:
     std::string name_;
-    size_t      size_;
-    std::type_index  type_info_;
+    size_t size_;
+    std::type_index type_info_;
     std::unique_ptr<placeholder> ph_;
 };
 
@@ -131,19 +134,21 @@ private:
 // Implement these two functions for any custom data types you want to
 // (de)serialize.  You can find an example in unit_tests.cpp.
 
-template<typename t>
-void
-serialize (const t&, std::vector<char>&)
+template <typename t>
+void serialize(const t&, std::vector<char>&)
 {
-    throw std::runtime_error(std::string("es::serialize not implemented for ") + typeid(t).name());
+    throw std::runtime_error(std::string("es::serialize not implemented for ")
+                             + typeid(t).name());
 }
 
-template<typename t>
+template <typename t>
 std::vector<char>::const_iterator
-deserialize (t&, std::vector<char>::const_iterator, std::vector<char>::const_iterator)
+deserialize(t&, std::vector<char>::const_iterator,
+            std::vector<char>::const_iterator)
 {
-    throw std::runtime_error(std::string("es::deserialize not implemented for ") + typeid(t).name());
+    throw std::runtime_error(
+        std::string("es::deserialize not implemented for ")
+        + typeid(t).name());
 }
 
 } // namespace es
-

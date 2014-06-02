@@ -2,14 +2,14 @@
 /// \file   es/traits.hpp
 /// \brief  Determine memory layout and serialization for certain types
 //
-// Copyright 2013, nocte@hippie.nu            Released under the MIT License.
+// Copyright 2014, nocte@hippie.nu            Released under the MIT License.
 //---------------------------------------------------------------------------
 #pragma once
 
 #include <type_traits>
 
-namespace es {
-
+namespace es
+{
 /** Determine if a given type has a flat memory layout.
  *  By default, it uses std::is_trivial, which is always safe but not always
  *  optimal.  You can specialize is_flat for your own types if neccesary.
@@ -17,11 +17,10 @@ namespace es {
  *  Note: other queries than is_trivial could make an even better default,
  *  but they're not consistently supported across compilers.
  */
-template <typename t>
+template <typename T>
 struct is_flat
 {
-    static const bool value = std::is_trivial<t>::value;
+    static const bool value = std::is_trivial<T>::value;
 };
 
 } // namespace es
-

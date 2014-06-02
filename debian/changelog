@@ -1,3 +1,9 @@
+libes (0.2.7) raring; urgency=low
+
+  * Format with clang-format
+
+ -- Nocte <nocte@outlook.com>  Mon, 02 Jun 2014 20:09:50 +0200
+
 libes (0.2.6) raring; urgency=low
 
   * Change dirty flag to a bitmask
